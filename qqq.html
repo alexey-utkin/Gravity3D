@@ -1,0 +1,314 @@
+<html>
+<!--
+author: Alexey Utkin
+email:  alexey.utkin@gmail.com
+-->
+<head>
+<title>My God, it's full of stars!</title>
+<script type="text/javascript">
+var el;
+var ctx;
+var pixels;
+
+var w;
+var h;
+var fps = 100;
+
+var maxQ = 1;
+var maxRadius = 2;
+var ptAmplifier = 256 * 2 / maxQ;
+var cBody = 40;
+var scalePwr = 0;
+var scaleValue = 1;
+
+function init() {
+    el = document.getElementById('game');
+    w = el.width;
+    h = el.height;
+
+    ctx = el.getContext('2d');
+    ctx.translate(w / 2, h / 2);
+    pixels = ctx.createImageData(w, h);
+
+    for (var i = 0; i < w*h; ++i) {
+        pixels.data[i*4 + 3] = 255;
+    }
+
+    initModel();
+
+    setInterval(clock, 1000 / fps);
+};
+
+function clock() {
+    renderScene();
+    ctx.putImageData(pixels, 0, 0);
+    renderModel();
+};
+
+var radiusC = (Math.exp(maxRadius) - 1) / maxQ;
+function sr(q) {
+    return Math.log(1 + radiusC * q );
+}
+
+var arFX = new Array(cBody);
+var arFY = new Array(cBody);
+var arFZ = new Array(cBody);
+
+var arVX = new Array(cBody);
+var arVY = new Array(cBody);
+var arVZ = new Array(cBody);
+
+var arX = new Array(cBody);
+var arY = new Array(cBody);
+var arZ = new Array(cBody); 
+
+var arQ = new Array(cBody);
+var M;
+
+function initModel() {
+    M = 0;
+    var mX = 0;
+    var mY = 0;
+    var mZ = 0;
+
+    var mVX = 0;
+    var mVY = 0;
+    var mVZ = 0;
+
+
+    for (var i = 0; i < cBody; ++i) {
+        var k = Math.random();
+        arQ[i] = maxQ * Math.exp(Math.random() - 1.0);
+
+        arX[i] = w * Math.random() - w / 2;
+        arY[i] = h * Math.random() - h / 2;
+        arZ[i] = h * Math.random() - h / 2;
+
+        arVX[i] = 0; //w * Math.random() / (10 * fps);
+        arVY[i] = 0; //h * Math.random() / (10 * fps);
+        arVZ[i] = 0; //h * Math.random() / (10 * fps);
+
+        M += arQ[i];
+
+        mX += arQ[i] * arX[i];
+        mY += arQ[i] * arY[i];
+        mZ += arQ[i] * arZ[i];
+
+        mVX += arQ[i] * arVX[i];
+        mVY += arQ[i] * arVY[i];
+        mVZ += arQ[i] * arVZ[i];
+    }
+    mX /= M;
+    mY /= M;
+    mZ /= M;
+
+    mVX /= M;
+    mVY /= M;
+    mVZ /= M;
+    moveSystem(mX, mY, mZ, mVX, mVY, mVZ);
+}
+
+function ss(x1, y1, x2, y2, z1, z2) {
+    return x1*x2 + y1*y2 + z1*z2;
+}
+
+function modul(x, y, z) {
+    return Math.sqrt(x*x + y*y + z*z);
+}
+
+function doModel() {
+    for (var i = 0; i < cBody; ++i) {
+        arX[i] += arVX[i];
+        arY[i] += arVY[i];
+        arZ[i] += arVZ[i];
+
+        arFX[i] = 0;
+        arFY[i] = 0;
+        arFZ[i] = 0;
+    }
+    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+        for (var k = 0; k < i; ++k) if (arQ[k] != 0) {
+            var dx = arX[k] - arX[i];
+            var dy = arY[k] - arY[i];
+            var dz = arZ[k] - arZ[i];
+            var r2 = (dx*dx + dy*dy + dz*dz);
+            var r = Math.sqrt(r2);
+            var nx = dx / r;
+            var ny = dy / r;
+            var nz = dz / r;
+            if (r < sr(arQ[i]) + sr(arQ[k])) {
+                var m = arQ[i];
+                var M = arQ[k];
+                if (Math.random() > 0.5) {
+                    //Elastic collision
+                    var un_ss = ss(arVX[i], arVY[i], arVZ[i], nx, ny, nz);
+                    var Un_ss = ss(arVX[k], arVY[k], arVZ[k], nx, ny, nz);
+
+                    var vn_ss = (un_ss * (m - M) + 2 * M * Un_ss) / (m + M);
+                    var Vn_ss = (Un_ss * (M - m) + 2 * m * un_ss) / (m + M);
+
+                    arVX[i] += (vn_ss - un_ss) * nx;
+                    arVY[i] += (vn_ss - un_ss) * ny;
+                    arVZ[i] += (vn_ss - un_ss) * nz;
+
+                    arVX[k] += (Vn_ss - Un_ss) * nx;
+                    arVY[k] += (Vn_ss - Un_ss) * ny;
+                    arVZ[k] += (Vn_ss - Un_ss) * nz;
+                } else {
+                    //Inelastic collision
+                    var MM = m + M;
+                    arVX[i] = (m * arVX[i] + M * arVX[k]) / MM;
+                    arVY[i] = (m * arVY[i] + M * arVY[k]) / MM;
+                    arVZ[i] = (m * arVZ[i] + M * arVZ[k]) / MM;
+
+                    arX[i] = (m * arX[i] + M * arX[k]) / MM;
+                    arY[i] = (m * arY[i] + M * arY[k]) / MM;
+                    arZ[i] = (m * arZ[i] + M * arZ[k]) / MM;
+
+                    arQ[i] = MM;
+
+                    arQ[k] = 0;
+                    arVX[k] = 0;
+                    arVY[k] = 0;
+                    arVZ[k] = 0;
+                }
+            } else {
+                var F = arQ[k] / r2;
+                arFX[i] += F * nx;
+                arFY[i] += F * ny;
+                arFZ[i] += F * nz;
+
+                F = arQ[i] / r2;
+                arFX[k] -= F * nx;
+                arFY[k] -= F * ny;
+                arFZ[k] -= F * nz;
+            }
+        }
+    }
+    for (var i = 0; i < cBody; ++i) {
+        arVX[i] += arFX[i];
+        arVY[i] += arFY[i];
+        arVZ[i] += arFZ[i];
+    }
+}
+
+function FF(x, y, z) {
+    var F = 0.0;
+    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+        if (x == arX[i] && y == arY[i] && z == arZ[i])
+            return arQ[i];
+        var r = modul(x - arX[i], y - arY[i], z - arZ[i]);
+        F += arQ[i] / r;
+    }
+    return F;
+}
+
+function renderScene() {
+    doModel();
+/*
+    for (var x = 0; x < w; ++x) {
+        for (var y = 0; y < h; ++y) {
+            pixels.data[(x + y * w) * 4] = ptAmplifier * FF(x, y, h/2);
+        }
+    }
+*/
+}
+
+
+var radiusB = (Math.exp(150) - 1) / (maxQ * cBody);
+function br(q) {
+    return Math.round(Math.log(1 + radiusB * q));
+}
+
+function renderModel() {
+    var mX = 0;
+    var mY = 0;
+    var mZ = 0;
+    var mVX = 0;
+    var mVY = 0;
+    var mVZ = 0;
+
+    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+        mX += arQ[i] * arX[i];
+        mY += arQ[i] * arY[i];
+        mZ += arQ[i] * arZ[i];
+        mVX += arQ[i] * arVX[i];
+        mVY += arQ[i] * arVY[i];
+        mVZ += arQ[i] * arVZ[i];
+
+        ctx.beginPath();
+        ctx.arc(arX[i], arY[i], sr(arQ[i]), 0, 2 * Math.PI, false);
+        var r = Math.round((arZ[i]/h + 0.5) * 255.0);
+        var b = br(arQ[i]);
+        var g = Math.round(arQ[i] / maxQ * 255.0);
+        ctx.fillStyle = "rgb(" + r +" ," + g + "," + b + ")";
+        ctx.fill();
+        ctx.lineWidth = 0.1;
+        ctx.stroke();
+    }
+
+    mX /= M;
+    mY /= M;
+    mZ /= M;
+    mVX /= M;
+    mVY /= M;
+    mVZ /= M;
+    ctx.fillStyle = "#0000FF";
+    ctx.fillRect(mX - 2, mY - 2, 4, 4);
+
+    moveSystem(mX, mY, mZ, mVX, mVY, mVZ);
+}
+
+
+function moveSystem(dx, dy, dz, dVx, dVy, dVz) {
+    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+        arX[i] -= dx;
+        arY[i] -= dy;
+        arZ[i] -= dz;
+        arVX[i] -= dVx;
+        arVY[i] -= dVy;
+        arVZ[i] -= dVz;
+/*
+        if ((arX[i] < -w / 2 && arVX[i] < 0.0) || (arX[i] > w / 2 && arVX[i] > 0.0))
+            arVX[i] *= -1.0;
+
+        if ((arY[i] < -h / 2 && arVY[i] < 0.0) || (arY[i] > h / 2 && arVY[i] > 0.0))
+            arVY[i] *= -1.0;
+
+        if ((arZ[i] < -h / 2 && arVZ[i] < 0.0) || (arZ[i] > h / 2 && arVZ[i] > 0.0))
+            arVZ[i] *= -1.0;
+*/
+        if ((arX[i] < -w / 2 && arVX[i] < 0.0) || (arX[i] > w / 2 && arVX[i] > 0.0))
+            arVX[i] *= -0.01;
+
+        if ((arY[i] < -h / 2 && arVY[i] < 0.0) || (arY[i] > h / 2 && arVY[i] > 0.0))
+            arVY[i] *= -0.01;
+
+        if ((arZ[i] < -h / 2 && arVZ[i] < 0.0) || (arZ[i] > h / 2 && arVZ[i] > 0.0))
+            arVZ[i] *= -0.01;
+
+    }
+}
+
+</script>
+
+    <style type="text/css">
+    canvas {
+        image-rendering: optimizeSpeed;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: optimize-contrast;
+        -ms-interpolation-mode: nearest-neighbor;
+        width:400px;
+        height:400px;
+    }
+    </style>
+</head>
+    
+<body>
+    <canvas id="game" width="400" height="400" onkeydown="move"></canvas>
+    <script type="text/javascript">init();</script>
+</body>
+</body>
+
+</html>
