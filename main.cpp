@@ -11,6 +11,7 @@ const int WIDTH = 1000;
 const int HEIGHT = 1000;
 const int FPS = 100;
 const int cBody = 2000;
+const int cBlackHole = 500;
 const int cTailSize = 10;
 const double maxQ = 1;
 const double maxRadius = 2;
@@ -44,11 +45,16 @@ void initParticles() {
     particles.resize(cBody);
     Particle S;
 
+    int i = 0;
     for (auto &p: particles) {
-        p.q = maxQ * exp((double) rand() / RAND_MAX - 1.0);
-        p.position = {WIDTH * ((double) rand() / RAND_MAX) - WIDTH / 2,
-                      HEIGHT * ((double) rand() / RAND_MAX) - HEIGHT / 2,
-                      HEIGHT * ((double) rand() / RAND_MAX) - HEIGHT / 2};
+        if (++i < cBlackHole)
+            p.q = maxQ;
+        else
+            p.q = maxQ * exp((double) rand() / RAND_MAX - 1.0);
+
+        p.position = {WIDTH / 4 + (WIDTH * ((double) rand() / RAND_MAX) - WIDTH / 2) * 0.5,
+                      HEIGHT / 4 + (HEIGHT * ((double) rand() / RAND_MAX) - HEIGHT / 2) * 0.5,
+                      HEIGHT / 4 + (HEIGHT * ((double) rand() / RAND_MAX) - HEIGHT / 2) * 0.5};
         p.velocity = {0, 0, 0};
 
         S.q += p.q;
@@ -92,7 +98,7 @@ void updateParticles() {
                 double v1n = pi.velocity.dot(normal);
                 double v2n = pj.velocity.dot(normal);
 
-                if (rand() % 2) { // Elastic collision
+                if (rand() % 5 != 1) { // Elastic collision
                     double m1 = pi.q;
                     double m2 = pj.q;
                     double v1nNew = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2);
@@ -125,29 +131,32 @@ void updateParticles() {
 void renderScene(Mat &canvas) {
     canvas = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
 
-    // Isometric projection matrix
-    const double isoAngle = M_PI / 6; // 30 degrees
-    const double scaleFactor = 0.5;
-    Matx<double, 2, 3> isoMatrix(
-        scaleFactor, 0, scaleFactor * std::cos(isoAngle), // x' = x - z * cos(30)
-        0, -scaleFactor, scaleFactor * std::sin(isoAngle) // y' = -y - z * sin(30)
-    );
+    // Perspective projection parameters
+    double f = 300; // Focal length
+    const double near = HEIGHT / 2; // Near clipping plane depth to avoid division by zero.
 
-    auto projectIsometric = [&isoMatrix](const Vec3d &point) -> Point {
-        Vec2d projected = isoMatrix * point; // Apply isometric projection
-        return {(int)(projected[0] + WIDTH / 2), (int)(projected[1] + HEIGHT / 2)}; // Shift to screen center
+    auto projectPerspective = [&](const Vec3d &point) -> Point {
+        double z = point[2] + near; // Adjust for near clipping
+        if (z <= 0.1) z = 0.1; // Prevents extreme scaling for very close objects
+        double perspX = f * (point[0]) / z;
+        double perspY = f * (point[1]) / z;
+
+        // Step 3: Scale and center the projection on the canvas
+        int x_proj = static_cast<int>(perspX + WIDTH / 2);
+        int y_proj = static_cast<int>(perspY + HEIGHT / 2);
+        return {x_proj, y_proj};
     };
 
     // Define the 8 corners of the cube (bounding box)
     vector<Vec3d> cubeCorners = {
-            { -WIDTH / 2, -HEIGHT / 2, -HEIGHT / 2 }, // Bottom-back-left
-            {  WIDTH / 2, -HEIGHT / 2, -HEIGHT / 2 }, // Bottom-back-right
-            {  WIDTH / 2,  HEIGHT / 2, -HEIGHT / 2 }, // Bottom-front-right
-            { -WIDTH / 2,  HEIGHT / 2, -HEIGHT / 2 }, // Bottom-front-left
-            { -WIDTH / 2, -HEIGHT / 2,  HEIGHT / 2 }, // Top-back-left
-            {  WIDTH / 2, -HEIGHT / 2,  HEIGHT / 2 }, // Top-back-right
-            {  WIDTH / 2,  HEIGHT / 2,  HEIGHT / 2 }, // Top-front-right
-            { -WIDTH / 2,  HEIGHT / 2,  HEIGHT / 2 }  // Top-front-left
+            {-WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-left
+            {WIDTH / 4,  -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-right
+            {WIDTH / 4,  HEIGHT / 4,  -HEIGHT / 4}, // Bottom-front-right
+            {-WIDTH / 4, HEIGHT / 4,  -HEIGHT / 4}, // Bottom-front-left
+            {-WIDTH / 4, -HEIGHT / 4, HEIGHT / 4}, // Top-back-left
+            {WIDTH / 4,  -HEIGHT / 4, HEIGHT / 4}, // Top-back-right
+            {WIDTH / 4,  HEIGHT / 4,  HEIGHT / 4}, // Top-front-right
+            {-WIDTH / 4, HEIGHT / 4,  HEIGHT / 4}  // Top-front-left
     };
 
     // Define the edges of the bounding cube (pairs of vertices)
@@ -158,23 +167,23 @@ void renderScene(Mat &canvas) {
     };
 
     // Draw cube edges
-    for (const auto &edge : cubeEdges) {
-        Point p1 = projectIsometric(cubeCorners[edge.first]);
-        Point p2 = projectIsometric(cubeCorners[edge.second]);
-        line(canvas, p1, p2, Scalar(200, 200, 200), 1); // Light gray for the cube edges
+    for (const auto &edge: cubeEdges) {
+        Point p1 = projectPerspective(cubeCorners[edge.first]);
+        Point p2 = projectPerspective(cubeCorners[edge.second]);
+        line(canvas, p1, p2, Scalar(200, 200, 200), 1); // Light gray for cube edges
     }
 
     // Draw each particle's trace
-    for (const auto &p : particles) {
+    for (const auto &p: particles) {
         if (!p.active || p.trace.empty()) continue;
 
         for (size_t i = 1; i < p.trace.size(); ++i) {
             const Vec3d &prev = p.trace[i - 1];
             const Vec3d &current = p.trace[i];
 
-            // Project 3D points to isometric 2D points
-            Point p1 = projectIsometric(prev);
-            Point p2 = projectIsometric(current);
+            // Project 3D points to perspective 2D points
+            Point p1 = projectPerspective(prev);
+            Point p2 = projectPerspective(current);
 
             // Fade color effect for older trace points
             int intensity = (255 * i) / cTailSize;
@@ -187,14 +196,21 @@ void renderScene(Mat &canvas) {
     for (const auto &p: particles) {
         if (!p.active) continue;
 
-        // Project 3D point to 2D isometric point
-        Point center = projectIsometric(p.position);
+        // Project 3D point to 2D perspective point
+        Point center = projectPerspective(p.position);
+        if (center.x < 0 || center.y < 0 || center.x >= WIDTH || center.y >= HEIGHT) {
+            // Skip rendering circles out of bounds.
+            continue;
+        }
 
         // Calculate visual attributes
-        int radius = (int) sr(p.q);
-        int r = (int)((p.position[2] / HEIGHT + 0.5) * 255.0); // Z-axis depth color variation
-        int g = (int)(p.q / maxQ * 255.0);                     // Intensity based on charge
-        int b = radius;                                        // Blue value tied to radius
+        int radius = (int) (sr(p.q) * f / (p.position[2] + near));
+        if (radius <= 0)
+            continue;
+
+        int r = (int) (p.q * 255.0 / maxQ);
+        int g = (int) ((p.position[2] / HEIGHT + 0.5) * 255.0);
+        int b = radius;
 
         // Draw particle
         circle(canvas, center, radius, Scalar(b, g, r), FILLED);
