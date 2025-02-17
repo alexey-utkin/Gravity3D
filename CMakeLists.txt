@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(untitled30)
+project(Gravy3D)
 
 set(CMAKE_CXX_STANDARD 20)
 

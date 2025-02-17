@@ -5,14 +5,13 @@
 using namespace cv;
 using namespace std;
 
-const int WIDTH = 400;
-const int HEIGHT = 400;
+const int WIDTH = 1000;
+const int HEIGHT = 1000;
 const int FPS = 100;
-const int cBody = 40;
+const int cBody = 2000;
+const int cTailSize = 10;
 const double maxQ = 1;
 const double maxRadius = 2;
-const double ptAmplifier = 256 * 2 / maxQ;
-const double G = 0.01;  // Gravitational constant
 
 struct Particle {
     cv::Vec3d position{};
@@ -20,6 +19,15 @@ struct Particle {
     cv::Vec3d force{};
     double q{};
     bool active = true;
+    deque<cv::Vec3d> trace; // Trace to store the last 10 positions.
+
+    // Method to add position to the trace and maintain size limit.
+    void addTrace() {
+        trace.push_back(position);
+        if (trace.size() > cTailSize) {
+            trace.pop_front(); // Remove the oldest position if trace exceeds size 10.
+        }
+    }
 };
 
 vector<Particle> particles;
@@ -58,6 +66,8 @@ void initParticles() {
 void updateParticles() {
     for (auto &p: particles) {
         if (!p.active) continue;
+
+        p.addTrace();
 
         p.position += p.velocity;
         p.force = {0, 0, 0};
@@ -112,6 +122,24 @@ void updateParticles() {
 
 void renderScene(Mat &canvas) {
     canvas = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
+
+    // Draw each particle's trace.
+    for (const auto &p : particles) {
+        if (!p.active || p.trace.empty()) continue;
+
+        for (size_t i = 1; i < p.trace.size(); ++i) {
+            const Vec3d &prev = p.trace[i - 1];
+            const Vec3d &current = p.trace[i];
+            Point p1((int)prev[0] + WIDTH / 2, (int)prev[1] + HEIGHT / 2);
+            Point p2((int)current[0] + WIDTH / 2, (int)current[1] + HEIGHT / 2);
+
+            // Fade color effect for older trace points.
+            int intensity = (255 * i) / 10;
+            line(canvas, p1, p2, Scalar(intensity, intensity, intensity), 1);
+        }
+    }
+
+    // Draw the particles.
     for (const auto &p: particles) {
         if (!p.active) continue;
         int radius = (int) sr(p.q);
@@ -126,6 +154,7 @@ void renderScene(Mat &canvas) {
 int main() {
     srand(time(0));
     initParticles();
+
     Mat canvas(HEIGHT, WIDTH, CV_8UC3);
     namedWindow("Simulation", WINDOW_AUTOSIZE);
 
@@ -133,7 +162,8 @@ int main() {
         updateParticles();
         renderScene(canvas);
         imshow("Simulation", canvas);
-        if (waitKey(1000 / FPS) == 27) break;
+        if (waitKey(1000 / FPS) == 27) break; // Exit on ESC key press.
     }
+
     return 0;
 }
