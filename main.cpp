@@ -2,6 +2,8 @@
 #include <vector>
 #include <cstdlib>
 
+#define M_PI 3.14159265358979323846
+
 using namespace cv;
 using namespace std;
 
@@ -123,31 +125,79 @@ void updateParticles() {
 void renderScene(Mat &canvas) {
     canvas = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
 
-    // Draw each particle's trace.
+    // Isometric projection matrix
+    const double isoAngle = M_PI / 6; // 30 degrees
+    const double scaleFactor = 0.5;
+    Matx<double, 2, 3> isoMatrix(
+        scaleFactor, 0, scaleFactor * std::cos(isoAngle), // x' = x - z * cos(30)
+        0, -scaleFactor, scaleFactor * std::sin(isoAngle) // y' = -y - z * sin(30)
+    );
+
+    auto projectIsometric = [&isoMatrix](const Vec3d &point) -> Point {
+        Vec2d projected = isoMatrix * point; // Apply isometric projection
+        return {(int)(projected[0] + WIDTH / 2), (int)(projected[1] + HEIGHT / 2)}; // Shift to screen center
+    };
+
+    // Define the 8 corners of the cube (bounding box)
+    vector<Vec3d> cubeCorners = {
+            { -WIDTH / 2, -HEIGHT / 2, -HEIGHT / 2 }, // Bottom-back-left
+            {  WIDTH / 2, -HEIGHT / 2, -HEIGHT / 2 }, // Bottom-back-right
+            {  WIDTH / 2,  HEIGHT / 2, -HEIGHT / 2 }, // Bottom-front-right
+            { -WIDTH / 2,  HEIGHT / 2, -HEIGHT / 2 }, // Bottom-front-left
+            { -WIDTH / 2, -HEIGHT / 2,  HEIGHT / 2 }, // Top-back-left
+            {  WIDTH / 2, -HEIGHT / 2,  HEIGHT / 2 }, // Top-back-right
+            {  WIDTH / 2,  HEIGHT / 2,  HEIGHT / 2 }, // Top-front-right
+            { -WIDTH / 2,  HEIGHT / 2,  HEIGHT / 2 }  // Top-front-left
+    };
+
+    // Define the edges of the bounding cube (pairs of vertices)
+    vector<pair<int, int>> cubeEdges = {
+            { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 }, // Bottom face
+            { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 }, // Top face
+            { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }  // Vertical edges
+    };
+
+    // Draw cube edges
+    for (const auto &edge : cubeEdges) {
+        Point p1 = projectIsometric(cubeCorners[edge.first]);
+        Point p2 = projectIsometric(cubeCorners[edge.second]);
+        line(canvas, p1, p2, Scalar(200, 200, 200), 1); // Light gray for the cube edges
+    }
+
+    // Draw each particle's trace
     for (const auto &p : particles) {
         if (!p.active || p.trace.empty()) continue;
 
         for (size_t i = 1; i < p.trace.size(); ++i) {
             const Vec3d &prev = p.trace[i - 1];
             const Vec3d &current = p.trace[i];
-            Point p1((int)prev[0] + WIDTH / 2, (int)prev[1] + HEIGHT / 2);
-            Point p2((int)current[0] + WIDTH / 2, (int)current[1] + HEIGHT / 2);
 
-            // Fade color effect for older trace points.
-            int intensity = (255 * i) / 10;
-            line(canvas, p1, p2, Scalar(intensity, intensity, intensity), 1);
+            // Project 3D points to isometric 2D points
+            Point p1 = projectIsometric(prev);
+            Point p2 = projectIsometric(current);
+
+            // Fade color effect for older trace points
+            int intensity = (255 * i) / cTailSize;
+            Scalar color(intensity, intensity, intensity); // Grayscale based on trace age
+            line(canvas, p1, p2, color, 1);
         }
     }
 
     // Draw the particles.
     for (const auto &p: particles) {
         if (!p.active) continue;
+
+        // Project 3D point to 2D isometric point
+        Point center = projectIsometric(p.position);
+
+        // Calculate visual attributes
         int radius = (int) sr(p.q);
-        int r = (int) ((p.position[2] / HEIGHT + 0.5) * 255.0);
-        int g = (int) (p.q / maxQ * 255.0);
-        int b = radius;
-        circle(canvas, Point((int) p.position[0] + WIDTH / 2, (int) p.position[1] + HEIGHT / 2), radius,
-               Scalar(b, g, r), FILLED);
+        int r = (int)((p.position[2] / HEIGHT + 0.5) * 255.0); // Z-axis depth color variation
+        int g = (int)(p.q / maxQ * 255.0);                     // Intensity based on charge
+        int b = radius;                                        // Blue value tied to radius
+
+        // Draw particle
+        circle(canvas, center, radius, Scalar(b, g, r), FILLED);
     }
 }
 
