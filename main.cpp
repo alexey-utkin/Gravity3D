@@ -172,7 +172,7 @@ void processInteraction(Particle &pi, Particle &pj) {
 
 void updateParticles() {
     int numParticles = std::size(particles);
-    // First loop: updating positions and clearing forces
+    // Updating positions and clearing forces
 #pragma omp for schedule(static)
     for (auto i = 0; i < numParticles; ++i) {
         Particle &p = particles[i];
@@ -182,6 +182,7 @@ void updateParticles() {
         p.force = {0, 0, 0};
     }
 
+    // Update forces
     int totalInteractions = (numParticles * (numParticles - 1)) / 2;
 #pragma omp for schedule(static)
     //schedule(dynamic, 64)
@@ -194,12 +195,12 @@ void updateParticles() {
         processInteraction(particles[i], particles[j]);
     }
 
-    // Third loop: update velocities based on computed forces
+    // Update velocities based on computed forces
 #pragma omp for schedule(static)
     for (auto i = 0; i < numParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active) continue;
-        p.velocity += p.force;
+        p.velocity += p.force / p.q;
     }
 }
 

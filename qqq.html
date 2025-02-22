@@ -186,9 +186,9 @@ function doModel() {
         }
     }
     for (var i = 0; i < cBody; ++i) {
-        arVX[i] += arFX[i];
-        arVY[i] += arFY[i];
-        arVZ[i] += arFZ[i];
+        arVX[i] += arFX[i] / arQ[i];
+        arVY[i] += arFY[i] / arQ[i];
+        arVZ[i] += arFZ[i] / arQ[i];
     }
 }
 
