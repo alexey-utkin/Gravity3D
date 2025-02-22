@@ -2,6 +2,10 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <cstdlib>
+#include <deque>
+#include <atomic>
+#include <thread>
+#include <iostream>
 
 #define M_PI 3.14159265358979323846
 
@@ -10,7 +14,6 @@ using namespace std;
 
 const int WIDTH = 1000;
 const int HEIGHT = 1000;
-const int FPS = 600;
 const int cBody = 2000;
 const int cBlackHole = 500;
 const int cTailSize = 10;
@@ -21,31 +24,19 @@ double RAND_MAX = 32767.0;
 
 struct Particle {
     atomic<int> lock{0};
-    cv::Vec3d position{};
-    cv::Vec3d velocity{};
-    cv::Vec3d force{};
+    Vec3d position{};
+    Vec3d velocity{};
+    Vec3d force{};
     double q{};
     bool active = true;
-    deque<cv::Vec3d> trace; // Trace to store the last 10 positions.
+    deque<Vec3d> trace;
 
-    // Method to add position to the trace and maintain size limit.
     void addTrace() {
         trace.push_back(position);
         if (trace.size() > cTailSize) {
-            trace.pop_front(); // Remove the oldest position if trace exceeds size 10.
+            trace.pop_front();
         }
     }
-
-    Particle() = default;
-
-    // Delete copy constructor and copy assignment operator
-    Particle(const Particle &) = delete;
-
-    Particle &operator=(const Particle &) = delete;
-
-    Particle(Particle &&other) = delete;
-
-    Particle &operator=(Particle &&other) = delete;
 };
 
 alignas(64) Particle particles[cBody];
@@ -53,17 +44,15 @@ alignas(64) Particle particles[cBody];
 struct Locker {
     Particle &p;
 
-    Locker(Particle &p1) : p(p1) {
+    explicit Locker(Particle &p1) : p(p1) {
         int expected = 0;
         while (!p.lock.compare_exchange_strong(expected, 1)) {
             expected = 0;
-            std::this_thread::yield();// Reset expected value after a failed compare_exchange
+            this_thread::yield();
         }
     }
 
-    ~Locker() {
-        p.lock.store(0);
-    }
+    ~Locker() { p.lock.store(0); }
 };
 
 const double radiusC = (exp(maxRadius) - 1) / maxQ;
@@ -72,28 +61,25 @@ double sr(double q) {
     return log(1 + radiusC * q);
 }
 
-void initParticles() {
+void initParticles_3Centers() {
     Particle S;
-
     double offsets[][3] = {
             {0,         0,          0},
             {WIDTH / 2, HEIGHT / 2, HEIGHT / 2},
             {0,         HEIGHT / 2, HEIGHT / 2}
     };
+
     int i = 0;
     for (auto &p: particles) {
-        // if (++i < cBlackHole)
-        //     p.q = maxQ;
-        // else
-        //     p.q = maxQ * exp(rand() / RAND_MAX - 1.0);
-
         ++i;
         p.q = maxQ * rand() / RAND_MAX;
         int z = i % 3;
         const double *offset = offsets[z];
-        p.position = {offset[0] + (WIDTH * (rand() / RAND_MAX) - WIDTH / 2) * 0.5,
-                      offset[1] + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5,
-                      offset[2] + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5};
+        p.position = {
+                offset[0] + (WIDTH * (rand() / RAND_MAX) - WIDTH / 2) * 0.5,
+                offset[1] + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5,
+                offset[2] + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5
+        };
         p.velocity = {rand() / RAND_MAX, rand() / RAND_MAX, rand() / RAND_MAX};
 
         S.q += p.q;
@@ -110,7 +96,7 @@ void initParticles() {
     }
 }
 
-void initParticles1() {
+void initParticles_WithOldBlackHoles() {
     Particle S;
 
     int i = 0;
@@ -144,39 +130,35 @@ void processInteraction(Particle &pi, Particle &pj) {
     Locker lockj(pj);
     if (!pi.active || !pj.active) return;
 
-    cv::Vec3d delta = pj.position - pi.position;
+    Vec3d delta = pj.position - pi.position;
     double distSq = delta.dot(delta);
     double dist = sqrt(distSq);
-
-    cv::Vec3d normal = delta / dist;
+    Vec3d normal = delta / dist;
 
     if (dist < sr(pi.q) + sr(pj.q)) {
         double v1n = pi.velocity.dot(normal);
         double v2n = pj.velocity.dot(normal);
-        {
-            if (rand() % 5 != 1) { // Elastic collision
-                double m1 = pi.q;
-                double m2 = pj.q;
-                double v1nNew = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2);
-                double v2nNew = (v2n * (m2 - m1) + 2 * m1 * v1n) / (m1 + m2);
+        if (rand() % 2 != 1) {
+            // Elastic collision
+            double m1 = pi.q;
+            double m2 = pj.q;
+            double v1nNew = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2);
+            double v2nNew = (v2n * (m2 - m1) + 2 * m1 * v1n) / (m1 + m2);
 
-                pi.velocity += normal * (v1nNew - v1n);
-                pj.velocity += normal * (v2nNew - v2n);
-            } else { // Inelastic collision
-                double totalMass = pi.q + pj.q;
-                pi.velocity = (pi.velocity * pi.q + pj.velocity * pj.q) / totalMass;
-                pi.position = (pi.position * pi.q + pj.position * pj.q) / totalMass;
-                pi.q = totalMass;
-                pj.active = false; // Mark the particle as inactive
-            }
+            pi.velocity += normal * (v1nNew - v1n);
+            pj.velocity += normal * (v2nNew - v2n);
+        } else { // Inelastic collision
+            double totalMass = pi.q + pj.q;
+            pi.velocity = (pi.velocity * pi.q + pj.velocity * pj.q) / totalMass;
+            pi.position = (pi.position * pi.q + pj.position * pj.q) / totalMass;
+            pi.q = totalMass;
+            pj.active = false; // Mark the particle as inactive
         }
     } else {
         // Calculate forces
         double F = pj.q / distSq;
-        {
-            pi.force += normal * F;
-            pj.force -= normal * F;
-        }
+        pi.force += normal * F;
+        pj.force -= normal * F;
     }
 }
 
@@ -184,7 +166,7 @@ void updateParticles() {
     int numParticles = std::size(particles);
     // First loop: updating positions and clearing forces
 #pragma omp for schedule(static)
-    for (auto  i = 0; i < numParticles; ++i) {
+    for (auto i = 0; i < numParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active) continue;
         p.addTrace();
@@ -213,54 +195,89 @@ void updateParticles() {
     }
 }
 
+// Define the 8 corners of the cube (bounding box)
+vector<Vec3d> cubeCorners = {
+        {-WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-left
+        {WIDTH / 4,  -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-right
+        {WIDTH / 4,  HEIGHT / 4,  -HEIGHT / 4}, // Bottom-front-right
+        {-WIDTH / 4, HEIGHT / 4,  -HEIGHT / 4}, // Bottom-front-left
+        {-WIDTH / 4, -HEIGHT / 4, HEIGHT / 4}, // Top-back-left
+        {WIDTH / 4,  -HEIGHT / 4, HEIGHT / 4}, // Top-back-right
+        {WIDTH / 4,  HEIGHT / 4,  HEIGHT / 4}, // Top-front-right
+        {-WIDTH / 4, HEIGHT / 4,  HEIGHT / 4}  // Top-front-left
+};
+
+// Define the edges of the bounding cube (pairs of vertices)
+vector<pair<int, int>> cubeEdges = {
+// @formatter:off
+        {0, 1}, {1, 2},  {2, 3},  {3, 0}, // Bottom face
+        {4, 5}, {5, 6},  {6, 7},  {7, 4}, // Top face
+        {0, 4}, {1, 5},  {2, 6},  {3, 7}  // Vertical edges
+// @formatter:on
+};
+
+vector<Scalar> colors = {
+        Scalar(0, 0, 255),     // Bright Red
+        Scalar(0, 255, 0),     // Bright Green
+        Scalar(255, 0, 0),     // Bright Blue
+        Scalar(0, 255, 255),   // Cyan
+        Scalar(255, 255, 0),   // Yellow
+        Scalar(255, 0, 255),   // Magenta
+        Scalar(128, 0, 255),   // Bright Purple
+        Scalar(0, 128, 255),   // Bright Orange
+        Scalar(255, 128, 0),   // Bright Pink
+        Scalar(0, 255, 128),   // Bright Teal
+        Scalar(128, 255, 0),   // Lime Green
+        Scalar(255, 0, 128)    // Bright Cherry
+};
+
+
+// Camera control variables
+Point lastMousePos;
+bool rotating = false;
+double cameraAngleX = 0.0, cameraAngleY = 0.0;
+double zoom = 1.0;
+
 void renderScene(Mat &canvas) {
     canvas = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
 
     // Perspective projection parameters
-    double f = 300; // Focal length
-    const double near = HEIGHT / 2; // Near clipping plane depth to avoid division by zero.
+    double f = 300 * zoom; // Focal length
+    const double near = HEIGHT * zoom / 2; // Near clipping plane depth to avoid division by zero.
+
+    double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
+    double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
 
     auto projectPerspective = [&](const Vec3d &point) -> Point {
-        double z = point[2] + near; // Adjust for near clipping
-        if (z <= 0.1) z = 0.1; // Prevents extreme scaling for very close objects
-        double perspX = f * (point[0]) / z;
-        double perspY = f * (point[1]) / z;
+        double x = point[0], y = point[1], z = point[2];
 
-        // Step 3: Scale and center the projection on the canvas
-        int x_proj = static_cast<int>(perspX + WIDTH / 2);
-        int y_proj = static_cast<int>(perspY + HEIGHT / 2);
+        double newY = y * cosX - z * sinX;
+        double newZ = y * sinX + z * cosX;
+        double newX = x * cosY + newZ * sinY;
+        newZ = -x * sinY + newZ * cosY;
+
+        double adjustedZ = newZ + near;
+        if (adjustedZ <= 0.1) adjustedZ = 0.1;
+
+        int x_proj = static_cast<int>(f * newX / adjustedZ + WIDTH / 2);
+        int y_proj = static_cast<int>(f * newY / adjustedZ + HEIGHT / 2);
         return {x_proj, y_proj};
     };
 
-    // Define the 8 corners of the cube (bounding box)
-    vector<Vec3d> cubeCorners = {
-            {-WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-left
-            {WIDTH / 4,  -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-right
-            {WIDTH / 4,  HEIGHT / 4,  -HEIGHT / 4}, // Bottom-front-right
-            {-WIDTH / 4, HEIGHT / 4,  -HEIGHT / 4}, // Bottom-front-left
-            {-WIDTH / 4, -HEIGHT / 4, HEIGHT / 4}, // Top-back-left
-            {WIDTH / 4,  -HEIGHT / 4, HEIGHT / 4}, // Top-back-right
-            {WIDTH / 4,  HEIGHT / 4,  HEIGHT / 4}, // Top-front-right
-            {-WIDTH / 4, HEIGHT / 4,  HEIGHT / 4}  // Top-front-left
-    };
-
-    // Define the edges of the bounding cube (pairs of vertices)
-    vector<pair<int, int>> cubeEdges = {
-            { 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 }, // Bottom face
-            { 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 }, // Top face
-            { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 }  // Vertical edges
-    };
 
     // Draw cube edges
-    for (const auto &edge: cubeEdges) {
+    for (size_t i = 0; i < cubeEdges.size(); ++i) {
+        const auto &edge = cubeEdges[i];
         Point p1 = projectPerspective(cubeCorners[edge.first]);
         Point p2 = projectPerspective(cubeCorners[edge.second]);
-        line(canvas, p1, p2, Scalar(200, 200, 200), 1); // Light gray for cube edges
+        // Wrap color selection using modulo operation to avoid overflow
+        Scalar color = colors[i % colors.size()];
+        line(canvas, p1, p2, color, 1);
     }
 
 
     int numParticles = std::size(particles);
-    #pragma omp for schedule(static)
+#pragma omp for schedule(static)
     for (auto i = 0; i < numParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active) continue;
@@ -309,16 +326,39 @@ void renderScene(Mat &canvas) {
     }
 }
 
+
+// Mouse callback for rotation and zoom
+void onMouse(int event, int x, int y, int flags, void *) {
+    if (event == EVENT_LBUTTONDOWN) {
+        rotating = true;
+        lastMousePos = Point(x, y);
+    } else if (event == EVENT_LBUTTONUP) {
+        rotating = false;
+    } else if (event == EVENT_MOUSEMOVE && rotating) {
+        int dx = x - lastMousePos.x;
+        int dy = y - lastMousePos.y;
+        cameraAngleY += dx * 0.005;
+        cameraAngleX += dy * 0.005;
+        lastMousePos = Point(x, y);
+    } else if (event == EVENT_MOUSEWHEEL) {
+        zoom += (flags > 0) ? 0.1 : -0.1;
+        zoom = max(0.1, zoom);
+    }
+}
+
 int main() {
-    int numThreads = std::min(omp_get_max_threads(), 16); // Use at most 8 threads
+    int numThreads = min(omp_get_max_threads(), 16);
     omp_set_num_threads(numThreads);
-    std::cout << "Hello from thread " << numThreads << std::endl;
+    cout << "Running with " << numThreads << " threads." << endl;
 
     srand(time(0));
-    initParticles();
+    //initParticles:
+    initParticles_3Centers();
+    //initParticles_WithOldBlackHoles();
 
     Mat canvas(HEIGHT, WIDTH, CV_8UC3);
     namedWindow("Simulation", WINDOW_AUTOSIZE);
+    setMouseCallback("Simulation", onMouse, nullptr);
 
     while (true) {
 #pragma omp parallel
@@ -327,7 +367,14 @@ int main() {
             renderScene(canvas);
         }
         imshow("Simulation", canvas);
-        if (waitKey(1) == 27) break; // Exit on ESC key press.
+        int key = waitKey(1);
+        if (key == ' ') { // Space for View parameters reset
+            cameraAngleX = 0.0;
+            cameraAngleY = 0.0;
+            zoom = 1.0;
+        }
+        if (key == 27) break; // Exit on ESC key
     }
+
     return 0;
 }
