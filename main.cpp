@@ -1,3 +1,11 @@
+/**
+@author: Alexey Utkin
+@email:  alexey.utkin@gmail.com
+
+    My God, it's full of stars!
+                      Arthur C.
+*/
+
 #include <omp.h>
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -6,8 +14,6 @@
 #include <atomic>
 #include <thread>
 #include <iostream>
-
-#define M_PI 3.14159265358979323846
 
 using namespace cv;
 using namespace std;
@@ -19,8 +25,10 @@ const int cBlackHole = 500;
 const int cTailSize = 10;
 const double maxQ = 1;
 const double maxRadius = 2;
-#undef RAND_MAX
-double RAND_MAX = 32767.0;
+
+double rnd() {
+    return  rand() / 32767.0;
+}
 
 struct Particle {
     atomic<int> lock{0};
@@ -61,7 +69,7 @@ double sr(double q) {
     return log(1 + radiusC * q);
 }
 
-void initParticles_3Centers() {
+[[maybe_unused]] void initParticles_3Centers() {
     Particle S;
     double offsets[][3] = {
             {0,         0,          0},
@@ -72,15 +80,15 @@ void initParticles_3Centers() {
     int i = 0;
     for (auto &p: particles) {
         ++i;
-        p.q = maxQ * rand() / RAND_MAX;
+        p.q = maxQ * rnd();
         int z = i % 3;
         const double *offset = offsets[z];
         p.position = {
-                offset[0] + (WIDTH * (rand() / RAND_MAX) - WIDTH / 2) * 0.5,
-                offset[1] + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5,
-                offset[2] + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5
+                offset[0] + (WIDTH * rnd() - WIDTH / 2) * 0.5,
+                offset[1] + (HEIGHT * rnd() - HEIGHT / 2) * 0.5,
+                offset[2] + (HEIGHT * rnd() - HEIGHT / 2) * 0.5
         };
-        p.velocity = {rand() / RAND_MAX, rand() / RAND_MAX, rand() / RAND_MAX};
+        p.velocity = {rnd(), rnd(), rnd()};
 
         S.q += p.q;
         S.position += p.position * p.q;
@@ -96,7 +104,7 @@ void initParticles_3Centers() {
     }
 }
 
-void initParticles_WithOldBlackHoles() {
+[[maybe_unused]] void initParticles_WithOldBlackHoles() {
     Particle S;
 
     int i = 0;
@@ -104,11 +112,11 @@ void initParticles_WithOldBlackHoles() {
         if (++i < cBlackHole)
             p.q = maxQ;
         else
-            p.q = maxQ * exp(rand() / RAND_MAX - 1.0);
+            p.q = maxQ * exp(rnd() - 1.0);
 
-        p.position = {WIDTH / 4 + (WIDTH * (rand() / RAND_MAX) - WIDTH / 2) * 0.5,
-                      HEIGHT / 4 + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5,
-                      HEIGHT / 4 + (HEIGHT * (rand() / RAND_MAX) - HEIGHT / 2) * 0.5};
+        p.position = {WIDTH / 4 + (WIDTH * rnd() - WIDTH / 2) * 0.5,
+                      HEIGHT / 4 + (HEIGHT * rnd() - HEIGHT / 2) * 0.5,
+                      HEIGHT / 4 + (HEIGHT * rnd() - HEIGHT / 2) * 0.5};
         p.velocity = {0, 0, 0};
 
         S.q += p.q;
@@ -126,8 +134,8 @@ void initParticles_WithOldBlackHoles() {
 }
 
 void processInteraction(Particle &pi, Particle &pj) {
-    Locker locki(pi);
-    Locker lockj(pj);
+    Locker lockI(pi);
+    Locker lockJ(pj);
     if (!pi.active || !pj.active) return;
 
     Vec3d delta = pj.position - pi.position;
@@ -138,7 +146,7 @@ void processInteraction(Particle &pi, Particle &pj) {
     if (dist < sr(pi.q) + sr(pj.q)) {
         double v1n = pi.velocity.dot(normal);
         double v2n = pj.velocity.dot(normal);
-        if (rand() % 2 != 1) {
+        if (rnd() < 0.5) {
             // Elastic collision
             double m1 = pi.q;
             double m2 = pj.q;
@@ -243,7 +251,7 @@ void renderScene(Mat &canvas) {
 
     // Perspective projection parameters
     double f = 300 * zoom; // Focal length
-    const double near = HEIGHT * zoom / 2; // Near clipping plane depth to avoid division by zero.
+    const double near = HEIGHT / 2; // Near clipping plane depth to avoid division by zero.
 
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
@@ -271,7 +279,7 @@ void renderScene(Mat &canvas) {
         Point p1 = projectPerspective(cubeCorners[edge.first]);
         Point p2 = projectPerspective(cubeCorners[edge.second]);
         // Wrap color selection using modulo operation to avoid overflow
-        Scalar color = colors[i % colors.size()];
+        const Scalar &color = colors[i % colors.size()];
         line(canvas, p1, p2, color, 1);
     }
 
@@ -283,16 +291,16 @@ void renderScene(Mat &canvas) {
         if (!p.active) continue;
         if (p.trace.size() > 1) {
             // Draw each particle's trace
-            for (size_t i = 1; i < p.trace.size(); ++i) {
-                const Vec3d &prev = p.trace[i - 1];
-                const Vec3d &current = p.trace[i];
+            for (auto t = 1; t < p.trace.size(); ++t) {
+                const Vec3d &prev = p.trace[t - 1];
+                const Vec3d &current = p.trace[t];
 
                 // Project 3D points to perspective 2D points
                 Point p1 = projectPerspective(prev);
                 Point p2 = projectPerspective(current);
 
                 // Fade color effect for older trace points
-                int intensity = (255 * i) / cTailSize;
+                int intensity = (255 * t) / cTailSize;
                 Scalar color(intensity, intensity, intensity); // Grayscale based on trace age
 #pragma omp critical
                 {
@@ -311,7 +319,7 @@ void renderScene(Mat &canvas) {
 
         // Calculate visual attributes
         int radius = (int) (sr(p.q) * f / (p.position[2] + near));
-        if (radius <= 0)
+        if (radius <= 0 || radius > 50)
             continue;
 
         int r = (int) (p.q * 255.0 / maxQ);
@@ -347,11 +355,11 @@ void onMouse(int event, int x, int y, int flags, void *) {
 }
 
 int main() {
-    int numThreads = min(omp_get_max_threads(), 16);
+    int numThreads = max(omp_get_max_threads() - 1, 1);
     omp_set_num_threads(numThreads);
     cout << "Running with " << numThreads << " threads." << endl;
 
-    srand(time(0));
+    srand(time(nullptr));
     //initParticles:
     initParticles_3Centers();
     //initParticles_WithOldBlackHoles();
