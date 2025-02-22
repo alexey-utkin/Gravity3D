@@ -173,7 +173,7 @@ function doModel() {
                     arVZ[k] = 0;
                 }
             } else {
-                var F = arQ[k] / r2;
+                var F = arQ[k] * arQ[i] / r2;
                 arFX[i] += F * nx;
                 arFY[i] += F * ny;
                 arFZ[i] += F * nz;

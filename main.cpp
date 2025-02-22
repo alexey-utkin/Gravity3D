@@ -164,9 +164,10 @@ void processInteraction(Particle &pi, Particle &pj) {
         }
     } else {
         // Calculate forces
-        double F = pj.q / distSq;
-        pi.force += normal * F;
-        pj.force -= normal * F;
+        double F = pj.q * pi.q / distSq;
+        const Vec<double, 3> &vecF = normal * F;
+        pi.force += vecF;
+        pj.force -= vecF;
     }
 }
 
