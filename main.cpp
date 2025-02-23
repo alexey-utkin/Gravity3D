@@ -285,6 +285,13 @@ vector<pair<int, int>> cubeEdges = {
     // @formatter:on
 };
 
+// Define orthogonal directions
+Vec3d directions[] = {
+    Vec3d(1.0, 0.0, 0.0), // x-axis
+    Vec3d(0.0, 1.0, 0.0), // y-axis
+    Vec3d(0.0, 0.0, 1.0)  // z-axis
+};
+
 vector<Scalar> colors = {
     Scalar(0, 0, 255),   // Bright Red
     Scalar(0, 255, 0),   // Bright Green
@@ -309,8 +316,7 @@ double zoom = 1.0;
 void renderScene(Mat &canvas) {
     // Perspective projection parameters
     double f = 300 * zoom; // Focal length
-    const double near =
-        HEIGHT / 2; // Near clipping plane depth to avoid division by zero.
+    const double near = HEIGHT / 2; // Near clipping plane depth to avoid division by zero.
 
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
@@ -376,14 +382,22 @@ void renderScene(Mat &canvas) {
             continue;
         }
 
-        // Calculate visual attributes
-        int radius = (int)(p.showR * f / (p.position[2] + near));
-        if (radius <= 0 || radius > 50)
+        // Track the maximum radius in screen space
+        double radius = 0.0;
+        for (const auto &dir : directions) {
+            // Compute a surface point in 3D by moving along the current direction
+            // Project the surface point into 2D
+            Point surfacePoint2D = projectPerspective(p.position + (p.realR * dir));
+            // Compute 2D distance between the center and the projected surface point
+            // Update the maximum radius
+            radius = std::max(maxRadius, norm(Vec2i(surfacePoint2D - center)));
+        }
+        if (radius <= 1 || radius > 50)
             continue;
 
-        int r = (int)(p.q() * 255.0 / maxQ);
-        int g = (int)((p.position[2] / HEIGHT + 0.5) * 255.0);
-        int b = radius;
+        int r = static_cast<int>(p.q() * 255.0 / maxQ);
+        int g = static_cast<int>((p.position[2] / HEIGHT + 0.5) * 255.0);
+        int b = 0;
 
         // Draw particle
 #pragma omp critical(canvas)
