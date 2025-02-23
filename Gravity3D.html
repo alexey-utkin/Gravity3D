@@ -17,7 +17,7 @@ var fps = 100;
 var maxQ = 1;
 var maxRadius = 2;
 var ptAmplifier = 256 * 2 / maxQ;
-var cBody = 40;
+var cParticles = 40;
 var scalePwr = 0;
 var scaleValue = 1;
 
@@ -50,19 +50,19 @@ function sr(q) {
     return Math.log(1 + radiusC * q );
 }
 
-var arFX = new Array(cBody);
-var arFY = new Array(cBody);
-var arFZ = new Array(cBody);
+var arFX = new Array(cParticles);
+var arFY = new Array(cParticles);
+var arFZ = new Array(cParticles);
 
-var arVX = new Array(cBody);
-var arVY = new Array(cBody);
-var arVZ = new Array(cBody);
+var arVX = new Array(cParticles);
+var arVY = new Array(cParticles);
+var arVZ = new Array(cParticles);
 
-var arX = new Array(cBody);
-var arY = new Array(cBody);
-var arZ = new Array(cBody); 
+var arX = new Array(cParticles);
+var arY = new Array(cParticles);
+var arZ = new Array(cParticles);
 
-var arQ = new Array(cBody);
+var arQ = new Array(cParticles);
 var M;
 
 function initModel() {
@@ -76,7 +76,7 @@ function initModel() {
     var mVZ = 0;
 
 
-    for (var i = 0; i < cBody; ++i) {
+    for (var i = 0; i < cParticles; ++i) {
         var k = Math.random();
         arQ[i] = maxQ * Math.exp(Math.random() - 1.0);
 
@@ -117,7 +117,7 @@ function modul(x, y, z) {
 }
 
 function doModel() {
-    for (var i = 0; i < cBody; ++i) {
+    for (var i = 0; i < cParticles; ++i) {
         arX[i] += arVX[i];
         arY[i] += arVY[i];
         arZ[i] += arVZ[i];
@@ -126,7 +126,7 @@ function doModel() {
         arFY[i] = 0;
         arFZ[i] = 0;
     }
-    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+    for (var i = 0; i < cParticles; ++i) if (arQ[i] != 0) {
         for (var k = 0; k < i; ++k) if (arQ[k] != 0) {
             var dx = arX[k] - arX[i];
             var dy = arY[k] - arY[i];
@@ -185,7 +185,7 @@ function doModel() {
             }
         }
     }
-    for (var i = 0; i < cBody; ++i) {
+    for (var i = 0; i < cParticles; ++i) {
         arVX[i] += arFX[i] / arQ[i];
         arVY[i] += arFY[i] / arQ[i];
         arVZ[i] += arFZ[i] / arQ[i];
@@ -194,7 +194,7 @@ function doModel() {
 
 function FF(x, y, z) {
     var F = 0.0;
-    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+    for (var i = 0; i < cParticles; ++i) if (arQ[i] != 0) {
         if (x == arX[i] && y == arY[i] && z == arZ[i])
             return arQ[i];
         var r = modul(x - arX[i], y - arY[i], z - arZ[i]);
@@ -215,7 +215,7 @@ function renderScene() {
 }
 
 
-var radiusB = (Math.exp(150) - 1) / (maxQ * cBody);
+var radiusB = (Math.exp(150) - 1) / (maxQ * cParticles);
 function br(q) {
     return Math.round(Math.log(1 + radiusB * q));
 }
@@ -228,7 +228,7 @@ function renderModel() {
     var mVY = 0;
     var mVZ = 0;
 
-    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+    for (var i = 0; i < cParticles; ++i) if (arQ[i] != 0) {
         mX += arQ[i] * arX[i];
         mY += arQ[i] * arY[i];
         mZ += arQ[i] * arZ[i];
@@ -261,7 +261,7 @@ function renderModel() {
 
 
 function moveSystem(dx, dy, dz, dVx, dVy, dVz) {
-    for (var i = 0; i < cBody; ++i) if (arQ[i] != 0) {
+    for (var i = 0; i < cParticles; ++i) if (arQ[i] != 0) {
         arX[i] -= dx;
         arY[i] -= dy;
         arZ[i] -= dz;
