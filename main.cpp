@@ -55,6 +55,12 @@ struct Particle {
         }
     }
 
+    void shiftTrace(const Vec3d &shift) {
+       for (auto &t : trace) {
+           t -= shift;
+       }
+    }
+
     void setQ(double q) {
         if (q < minQ) {
             q = minQ;
@@ -129,6 +135,7 @@ void normalize() {
         Particle &p = particles[i];
         if (!p.active) continue; // Skip inactive particles
         p.position -= cm.position; // Shift position
+        p.shiftTrace(cm.position);
         p.velocity -= cm.impuls;
     }
 }
