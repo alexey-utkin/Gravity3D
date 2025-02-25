@@ -6,20 +6,25 @@
                       Arthur C.
 */
 
-#include <omp.h>
-#include <opencv2/opencv.hpp>
-#include <vector>
+#include <atomic>
 #include <cstdlib>
 #include <deque>
-#include <atomic>
-#include <thread>
 #include <iostream>
+#include <omp.h>
+#include <opencv2/opencv.hpp>
+#include <thread>
+#include <vector>
 
 using namespace cv;
 using namespace std;
 
 constexpr int WIDTH = 1000;
 constexpr int HEIGHT = 1000;
+
+// Scalable dimensions
+int windowWidth = WIDTH;
+int windowHeight = HEIGHT;
+
 constexpr int cParticles = 2000;
 constexpr int cBlackHole = 500;
 constexpr int cTailSize = 10;
@@ -34,8 +39,10 @@ double totalPotentialEnergy = 0.0;
 double totalKineticEnergy = 0.0;
 int inactiveCount = 0;
 
+// Random generator
 double rnd() { return rand() / 32767.0; }
 
+// Particle structure
 struct Particle {
     atomic<int> lock{0};
     Vec3d position{};
@@ -56,9 +63,9 @@ struct Particle {
     }
 
     void shiftTrace(const Vec3d &shift) {
-       for (auto &t : trace) {
-           t -= shift;
-       }
+        for (auto &t : trace) {
+            t -= shift;
+        }
     }
 
     void setQ(double q) {
@@ -67,14 +74,16 @@ struct Particle {
         }
         _q = q;
         showR = log(1 + radiusC * _q);
-        realR = max(showR/2, minDist/2);
+        realR = max(showR / 2, minDist / 2);
     }
 
     [[nodiscard]] double q() const { return _q; }
+
 protected:
     double _q{};
 };
 
+// Particle container
 alignas(64) Particle particles[cParticles];
 
 struct Locker {
@@ -92,8 +101,8 @@ struct Locker {
 };
 
 struct CenterOfMass {
-    Vec3d position{0,0,0};
-    Vec3d impuls{0,0,0};
+    Vec3d position{0, 0, 0};
+    Vec3d impuls{0, 0, 0};
     double q{0};
 };
 
@@ -103,7 +112,8 @@ void normalize() {
 #pragma omp for schedule(static)
     for (auto i = 0; i < cParticles; ++i) {
         Particle &p = particles[i];
-        if (!p.active) continue; // Skip inactive particles
+        if (!p.active)
+            continue; // Skip inactive particles
         CenterOfMass &cm = centerOfMasses[omp_get_thread_num()];
         cm.position += p.position * p.q();
         cm.impuls += p.velocity * p.q();
@@ -121,7 +131,7 @@ void normalize() {
         }
 
         if (cm.q <= 0) {
-            cm.q -= minQ;
+            cm.q = minQ;
         }
 
         cm.position /= cm.q;
@@ -133,7 +143,8 @@ void normalize() {
 #pragma omp for schedule(static)
     for (auto i = 0; i < cParticles; ++i) {
         Particle &p = particles[i];
-        if (!p.active) continue; // Skip inactive particles
+        if (!p.active)
+            continue;              // Skip inactive particles
         p.position -= cm.position; // Shift position
         p.shiftTrace(cm.position);
         p.velocity -= cm.impuls;
@@ -171,10 +182,8 @@ void normalize() {
                       offset[1] + (HEIGHT * rnd() - HEIGHT / 2) * 0.5,
                       offset[2] + (HEIGHT * rnd() - HEIGHT / 2) * 0.5};
         p.velocity = {rnd(), rnd(), rnd()};
-
     }
 }
-
 
 void processInteraction(Particle &pi, Particle &pj) {
     Locker lockI(pi);
@@ -224,7 +233,7 @@ void processInteraction(Particle &pi, Particle &pj) {
 void updateParticles() {
     // Updating positions and clearing forces
 #pragma omp barrier
-#pragma omp for reduction(+:totalKineticEnergy, inactiveCount) schedule(static)
+#pragma omp for reduction(+ : totalKineticEnergy, inactiveCount) schedule(static)
     for (auto i = 0; i < cParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active) {
@@ -240,11 +249,11 @@ void updateParticles() {
     // Update forces
     int totalInteractions = (cParticles * (cParticles - 1)) / 2;
 #pragma omp barrier
-#pragma omp for  reduction(+:totalPotentialEnergy) schedule(static) // Dynamic scheduling with chunk size 64
+#pragma omp for reduction(+ : totalPotentialEnergy) schedule(static) // alt: Dynamic scheduling with chunk size 64
     for (auto index = 0; index < totalInteractions; ++index) {
         // Compute (i, j) indices from linear index
         int i = cParticles - 2 -
-                (int) (std::sqrt(-8 * index + 4 * cParticles * (cParticles - 1) - 7) / 2.0 - 0.5);
+                (int)(std::sqrt(-8 * index + 4 * cParticles * (cParticles - 1) - 7) / 2.0 - 0.5);
         int j = index + i + 1 - (cParticles * (cParticles - 1)) / 2 +
                 ((cParticles - i) * ((cParticles - i) - 1)) / 2;
         processInteraction(particles[i], particles[j]);
@@ -262,7 +271,7 @@ void updateParticles() {
 }
 
 // Define the 8 corners of the cube (bounding box)
-vector<Vec3d> cubeCorners = {
+const vector<Vec3d> cubeCorners = {
     {-WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-left
     {WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4},  // Bottom-back-right
     {WIDTH / 4, HEIGHT / 4, -HEIGHT / 4},   // Bottom-front-right
@@ -274,25 +283,22 @@ vector<Vec3d> cubeCorners = {
 };
 
 // Define the edges of the bounding cube (pairs of vertices)
-vector<pair<int, int>> cubeEdges = {
+const vector<pair<int, int>> cubeEdges = {
     // @formatter:off
-    {0, 1}, {1, 2}, {2, 3},
-    {3, 0}, // Bottom face
-    {4, 5}, {5, 6}, {6, 7},
-    {7, 4}, // Top face
-    {0, 4}, {1, 5}, {2, 6},
-    {3, 7} // Vertical edges
+    {0, 1}, {1, 2}, {2, 3}, {3, 0}, // Bottom face
+    {4, 5}, {5, 6}, {6, 7}, {7, 4}, // Top face
+    {0, 4}, {1, 5}, {2, 6}, {3, 7}  // Vertical edges
     // @formatter:on
 };
 
 // Define orthogonal directions
-Vec3d directions[] = {
+const Vec3d directions[] = {
     Vec3d(1.0, 0.0, 0.0), // x-axis
     Vec3d(0.0, 1.0, 0.0), // y-axis
     Vec3d(0.0, 0.0, 1.0)  // z-axis
 };
 
-vector<Scalar> colors = {
+const vector<Scalar> colors = {
     Scalar(0, 0, 255),   // Bright Red
     Scalar(0, 255, 0),   // Bright Green
     Scalar(255, 0, 0),   // Bright Blue
@@ -313,10 +319,11 @@ bool rotating = false;
 double cameraAngleX = 0.0, cameraAngleY = 0.0;
 double zoom = 1.0;
 
+// Render Scene Function
 void renderScene(Mat &canvas) {
     // Perspective projection parameters
-    double f = 300 * zoom; // Focal length
-    const double near = HEIGHT / 2; // Near clipping plane depth to avoid division by zero.
+    double f = 300 * zoom;                // Focal length
+    const double near = windowHeight / 2; // Near clipping plane depth to avoid division by zero.
 
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
@@ -333,13 +340,13 @@ void renderScene(Mat &canvas) {
         if (adjustedZ <= 0.1)
             adjustedZ = 0.1;
 
-        int x_proj = static_cast<int>(f * newX / adjustedZ + WIDTH / 2);
-        int y_proj = static_cast<int>(f * newY / adjustedZ + HEIGHT / 2);
+        int x_proj = static_cast<int>(f * newX / adjustedZ + windowWidth / 2);
+        int y_proj = static_cast<int>(f * newY / adjustedZ + windowHeight / 2);
         return {x_proj, y_proj};
     };
 
     // Draw cube edges
-    for (size_t i = 0; i < cubeEdges.size(); ++i) {
+    for (auto i = 0; i < cubeEdges.size(); ++i) {
         const auto &edge = cubeEdges[i];
         Point p1 = projectPerspective(cubeCorners[edge.first]);
         Point p2 = projectPerspective(cubeCorners[edge.second]);
@@ -364,8 +371,7 @@ void renderScene(Mat &canvas) {
 
                 // Fade color effect for older trace points
                 int intensity = (255 * t) / cTailSize;
-                Scalar color(intensity, intensity,
-                             intensity); // Grayscale based on trace age
+                Scalar color(intensity, intensity, intensity); // Grayscale based on trace age
 #pragma omp critical(canvas)
                 {
                     line(canvas, p1, p2, color, 1);
@@ -376,8 +382,7 @@ void renderScene(Mat &canvas) {
         // Draw the particles.
         // Project 3D point to 2D perspective point
         Point center = projectPerspective(p.position);
-        if (center.x < 0 || center.y < 0 || center.x >= WIDTH ||
-            center.y >= HEIGHT) {
+        if (center.x < 0 || center.y < 0 || center.x >= windowWidth || center.y >= windowHeight) {
             // Skip rendering circles out of bounds.
             continue;
         }
@@ -426,6 +431,7 @@ void onMouse(int event, int x, int y, int flags, void *) {
     }
 }
 
+const char windowName[] = "Simulation";
 int main() {
     numThreads = max(omp_get_max_threads() - 1, 1);
     // numThreads = 1;
@@ -434,15 +440,19 @@ int main() {
 
     srand(time(nullptr));
     // initParticles:
-    initParticles_3Centers();
-    // initParticles_WithOldBlackHoles();
+    //initParticles_3Centers();
+    initParticles_WithOldBlackHoles();
 
-    Mat canvas(HEIGHT, WIDTH, CV_8UC3);
-    namedWindow("Simulation", WINDOW_AUTOSIZE);
-    setMouseCallback("Simulation", onMouse, nullptr);
+    namedWindow(windowName, WINDOW_NORMAL);
+    setMouseCallback(windowName, onMouse, nullptr);
 
-    while (true) {
-        canvas = Mat::zeros(HEIGHT, WIDTH, CV_8UC3);
+    bool runMe = true;
+    while (runMe) {
+        Rect windowRect = getWindowImageRect(windowName);
+        windowWidth = windowRect.width;
+        windowHeight = windowRect.height;
+        Mat canvas = Mat::zeros(windowHeight, windowWidth, CV_8UC3);
+
         totalPotentialEnergy = 0.0;
         totalKineticEnergy = 0.0;
         inactiveCount = 0;
@@ -452,14 +462,24 @@ int main() {
             normalize();
             updateParticles();
             renderScene(canvas);
+#pragma omp barrier
         }
+
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(
             chrono::high_resolution_clock::now() - start);
-        std::cout << inactiveCount << " E: " << (totalKineticEnergy + totalPotentialEnergy) <<  ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
+        std::cout << inactiveCount << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
         // std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
-        imshow("Simulation", canvas);
-        int key = waitKey(1);
+        imshow(windowName, canvas);
+        char key = (char)waitKey(1);
         switch (key) {
+        default:
+            break;
+        case '+':
+            zoom += 0.1; // Zoom in
+            break;
+        case '-':
+            zoom = max(0.1, zoom - 0.1); // Zoom out
+            break;
         case ' ':
             cameraAngleX = 0.0;
             cameraAngleY = 0.0;
@@ -467,9 +487,10 @@ int main() {
             break;
         case 27: // ESC key
         case 'q':
-            return 0;
+            runMe = false;
+            break;
         }
     }
-
+    destroyAllWindows();
     return 0;
 }
