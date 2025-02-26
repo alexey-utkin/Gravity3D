@@ -103,30 +103,51 @@ struct Locker {
 struct CenterOfMass {
     Vec3d position{0, 0, 0};
     Vec3d impuls{0, 0, 0};
+    Vec3d momentum{0, 0, 0};
+    Matx33d inertiaTensor = Matx33d::eye();
     double q{0};
 };
 
+const Matx33d E = Matx33d::eye();
+double fullMass = 0;
+Vec3d fullCenter{0, 0, 0};
+Vec3d fullMomentum{0, 0, 0};
+Vec3d fullImpuls{0, 0, 0};
+bool useFullMomentum = false;
+
 void normalize() {
     // Compute the center of mass based on active particles
-    vector<CenterOfMass> centerOfMasses(numThreads, {{0, 0, 0}, 0});
+    vector<CenterOfMass> centerOfMasses(numThreads, CenterOfMass{});
 #pragma omp for schedule(static)
     for (auto i = 0; i < cParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active)
             continue; // Skip inactive particles
-        CenterOfMass &cm = centerOfMasses[omp_get_thread_num()];
-        cm.position += p.position * p.q();
-        cm.impuls += p.velocity * p.q();
-        cm.q += p.q();
+        CenterOfMass &tl_cm = centerOfMasses[omp_get_thread_num()];
+        double q = p.q();
+        Vec3d r = p.position;
+        Vec3d v = p.velocity;
+
+        tl_cm.position += q * r;
+        tl_cm.impuls += q * v;
+        tl_cm.momentum += q * r.cross(v);
+
+        const double r2 = r.dot(r);
+        tl_cm.inertiaTensor += q * (r2 * E - r * r.t());
+        tl_cm.q += q;
     }
 
 #pragma omp barrier
     CenterOfMass cm{};
+    Vec3d A{};
+    Vec3d dV{};
 #pragma omp single
     {
         for (const auto &threadCM : centerOfMasses) {
             cm.position += threadCM.position;
             cm.impuls += threadCM.impuls;
+            cm.momentum += threadCM.momentum;
+            cm.inertiaTensor += threadCM.inertiaTensor;
             cm.q += threadCM.q;
         }
 
@@ -134,8 +155,28 @@ void normalize() {
             cm.q = minQ;
         }
 
-        cm.position /= cm.q;
-        cm.impuls /= cm.q;
+        fullMass = cm.q;
+        fullCenter = cm.position / fullMass;
+        if (!useFullMomentum) {
+            A = {0, 0, 0};
+            dV = -cm.impuls / fullMass;
+            useFullMomentum = true;
+            // for (auto i = 0; i < cParticles; ++i) {
+            //     Particle &p = particles[i];
+            //     if (!p.active)
+            //         continue;              // Skip inactive particles
+            //     p.position -= fullCenter; // Shift position
+            //     p.shiftTrace(fullCenter);
+            //     p.velocity += dV;
+            // }
+        } else {
+            Matx33d I_inv;
+            invert(cm.inertiaTensor, I_inv, DECOMP_SVD); // Compute inverse of inertia tensor
+            A = I_inv * (cm.momentum - fullMomentum);    // Solve for correction factor
+            dV = -(cm.impuls - fullImpuls) / fullMass;
+        }
+        fullMomentum = cm.momentum;
+        fullImpuls = cm.impuls;
     }
 
     // Apply offset to move the center of mass to the origin
@@ -144,11 +185,35 @@ void normalize() {
     for (auto i = 0; i < cParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active)
-            continue;              // Skip inactive particles
-        p.position -= cm.position; // Shift position
-        p.shiftTrace(cm.position);
-        p.velocity -= cm.impuls;
+            continue; // Skip inactive particles
+        //p.velocity += dV;
+        p.velocity -= A.cross(p.position);
+        // p.position -= fullCenter; // Shift position
+        // p.shiftTrace(fullCenter);
     }
+
+
+    // control
+#pragma omp barrier
+#pragma omp single
+    {
+        cm = CenterOfMass{0};
+        for (auto i = 0; i < cParticles; ++i) {
+            Particle &p = particles[i];
+            if (!p.active)
+                continue; // Skip inactive particles
+            cm.impuls += p.q() * p.velocity;
+        }
+        std::cout << "P: " << fullImpuls << " PN: " << (fullImpuls - cm.impuls) << std::endl;
+        dV = -(cm.impuls - fullImpuls) / fullMass;
+        for (auto i = 0; i < cParticles; ++i) {
+            Particle &p = particles[i];
+            if (!p.active)
+                continue; // Skip inactive particles
+            //p.velocity += dV;
+        }
+    }
+#pragma omp barrier
 }
 
 [[maybe_unused]] void initParticles_WithOldBlackHoles() {
@@ -285,9 +350,18 @@ const vector<Vec3d> cubeCorners = {
 // Define the edges of the bounding cube (pairs of vertices)
 const vector<pair<int, int>> cubeEdges = {
     // @formatter:off
-    {0, 1}, {1, 2}, {2, 3}, {3, 0}, // Bottom face
-    {4, 5}, {5, 6}, {6, 7}, {7, 4}, // Top face
-    {0, 4}, {1, 5}, {2, 6}, {3, 7}  // Vertical edges
+    {0, 1},
+    {1, 2},
+    {2, 3},
+    {3, 0}, // Bottom face
+    {4, 5},
+    {5, 6},
+    {6, 7},
+    {7, 4}, // Top face
+    {0, 4},
+    {1, 5},
+    {2, 6},
+    {3, 7} // Vertical edges
     // @formatter:on
 };
 
@@ -467,7 +541,7 @@ int main() {
 
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(
             chrono::high_resolution_clock::now() - start);
-        std::cout << inactiveCount << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
+        std::cout << inactiveCount << "P: " << fullImpuls << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
         // std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
         imshow(windowName, canvas);
         char key = (char)waitKey(1);
