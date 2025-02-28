@@ -84,14 +84,10 @@ struct SystemParams {
     Vec3d position{0, 0, 0};
     Vec3d impuls{0, 0, 0};
     Vec3d momentum{0, 0, 0};
-    Matx33d inertiaTensor = Matx33d::eye();
+
+    Matx33d inertialTensor = Matx33d::eye();
     double q{0};
 };
 
 const Matx33d E = Matx33d::eye();
-
-double fullMass = 0;
-Vec3d fullCenter{0, 0, 0};
-Vec3d fullMomentum{0, 0, 0};
-Vec3d fullImpuls{0, 0, 0};
-bool useFullMomentum = false;
+SystemParams init;

@@ -10,7 +10,7 @@
         p.position = {WIDTH / 4 + (WIDTH * rnd() - WIDTH / 2) * 0.5,
                       HEIGHT / 4 + (HEIGHT * rnd() - HEIGHT / 2) * 0.5,
                       HEIGHT / 4 + (HEIGHT * rnd() - HEIGHT / 2) * 0.5};
-        p.velocity = {0, 0, 0};
+        p.velocity = {rnd(), rnd(), rnd()};
     }
 }
 

@@ -33,12 +33,13 @@ int main() {
 
     srand(time(nullptr));
     // initParticles:
-    // initParticles_3Centers();
-    initParticles_WithOldBlackHoles();
+    initParticles_3Centers();
+    //initParticles_WithOldBlackHoles();
 
     namedWindow(windowName, WINDOW_NORMAL);
     setMouseCallback(windowName, onMouse, nullptr);
 
+    init = calcParams();
     while (inputProcessing() && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
         Rect windowRect = getWindowImageRect(windowName);
         windowWidth = windowRect.width;
@@ -48,16 +49,16 @@ int main() {
         auto start = chrono::high_resolution_clock::now();
 #pragma omp parallel
         {
-            normalize();
             updateParticles();
             renderScene(canvas);
-#pragma omp barrier
         }
+        SystemParams current = calcParams();
+        renormalize(init, current);
 
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
         // std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
 
-        std::cout << inactiveCount << "P: " << fullImpuls << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
+        std::cout << inactiveCount << "P: " << current.impuls << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
         imshow(windowName, canvas);
     }
     destroyAllWindows();

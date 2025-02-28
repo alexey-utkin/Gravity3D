@@ -93,6 +93,9 @@ bool inputProcessing() {
         cameraAngleY = 0.0;
         zoom = 1.0;
         break;
+    case 'c':
+        init = recenterAndZeroV(init);
+        break;
     case 27: // ESC key
     case 'q':
         return false;
