@@ -26,7 +26,6 @@ double rnd() { return rand() / 32767.0; }
 
 // Particle structure
 struct Particle {
-    atomic<int> lock{0};
     Vec3d position{};
     Vec3d velocity{};
     Vec3d force{};
@@ -65,24 +64,30 @@ struct Particle {
     [[nodiscard]] double q() const { return _q; }
 
 protected:
+    friend bool operator<(const Particle &lhs, const Particle &rhs);
     double _q{};
 };
 
+bool operator<(const Particle &lhs, const Particle &rhs) {
+    return lhs._q > rhs._q;
+}
+
 // Particle container
 alignas(64) Particle particles[cParticles];
+alignas(64) atomic<int> locks[cParticles];
 
 struct Locker {
-    Particle &p;
+    atomic<int> &lock;
 
-    explicit Locker(Particle &p1) : p(p1) {
+    explicit Locker(atomic<int> &l) : lock(l) {
         int expected = 0;
-        while (!p.lock.compare_exchange_strong(expected, 1)) {
+        while (!lock.compare_exchange_strong(expected, 1)) {
             expected = 0;
             this_thread::yield();
         }
     }
 
-    ~Locker() { p.lock.store(0); }
+    ~Locker() { lock.store(0); }
 };
 
 struct SystemParams {

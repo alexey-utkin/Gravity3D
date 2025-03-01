@@ -56,6 +56,9 @@ bool rotating = false;
 double cameraAngleX = 0.0, cameraAngleY = 0.0;
 double zoom = 1.0;
 
+int observerIndex = -1;
+Vec3d observer{0, 0, 0};
+
 const char windowName[] = "Simulation";
 
 // Mouse callback for rotation and zoom
@@ -82,18 +85,26 @@ bool inputProcessing() {
     switch (key) {
     default:
         break;
+    case 'o':
+        std::sort(std::begin(particles), std::end(particles));
+        for (++observerIndex; !particles[observerIndex].active && observerIndex < cParticles; ++observerIndex)
+            ;
+        if (observerIndex >= cParticles) {
+            observerIndex = -1;
+        }
+        break;
     case '+':
         zoom *= 1.1; // Zoom in
         break;
     case '-':
-        zoom = max(1e-3, zoom*0.9); // Zoom out
+        zoom = max(1e-3, zoom * 0.9); // Zoom out
         break;
     case '.':
     case '>':
         frameCountPerTrace *= 5;
         break;
     case ',':
-    case '<' :
+    case '<':
         frameCountPerTrace /= 5;
         if (frameCountPerTrace < 1) {
             frameCountPerTrace = 1;
@@ -104,6 +115,8 @@ bool inputProcessing() {
         cameraAngleY = 0.0;
         zoom = 1.0;
         frameCountPerTrace = 1;
+        observer = {0, 0, 0};
+        observerIndex = -1;
         break;
     case 'c':
         recenterAndZeroV();

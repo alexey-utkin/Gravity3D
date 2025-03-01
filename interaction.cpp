@@ -1,6 +1,9 @@
-inline void processInteraction(Particle &pi, Particle &pj) {
-    Locker lockI(pi);
-    Locker lockJ(pj);
+inline void processInteraction(int i, int j) {
+    Locker lockI(locks[i]);
+    Locker lockJ(locks[j]);
+
+    Particle &pi = particles[i];
+    Particle &pj = particles[j];
     if (!pi.active || !pj.active)
         return;
 
@@ -54,7 +57,7 @@ inline void processPairInteractons() {
                 (int)(std::sqrt(-8 * index + 4 * cParticles * (cParticles - 1) - 7) / 2.0 - 0.5);
         int j = index + i + 1 - (cParticles * (cParticles - 1)) / 2 +
                 ((cParticles - i) * ((cParticles - i) - 1)) / 2;
-        processInteraction(particles[i], particles[j]);
+        processInteraction(i, j);
     }
 }
 

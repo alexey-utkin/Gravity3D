@@ -6,8 +6,12 @@ inline void renderScene(Mat &canvas) {
 
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
+    if (observerIndex >= 0 ) {
+        observer = particles[observerIndex].position;
+    }
 
-    auto projectPerspective = [&](const Vec3d &point) -> Point {
+    auto projectPerspective = [&](const Vec3d &_point) -> Point {
+        Vec3d point = _point - observer;
         double x = point[0], y = point[1], z = point[2];
 
         double newY = y * cosX - z * sinX;
@@ -61,7 +65,7 @@ inline void renderScene(Mat &canvas) {
 
         int r = static_cast<int>(p.q() * 255.0 / maxQ);
         int g = static_cast<int>((p.position[2] / HEIGHT + 0.5) * 255.0);
-        int b = 0;
+        int b = observerIndex == i ? 255 : 0;
 
         // Draw particle
 #pragma omp critical(canvas)

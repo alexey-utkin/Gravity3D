@@ -34,6 +34,8 @@ int main() {
     srand(time(nullptr));
     // initParticles:
     initParticles_3Centers();
+    std::sort(std::begin(particles), std::end(particles));
+
     //initParticles_WithOldBlackHoles();
 
     namedWindow(windowName, WINDOW_NORMAL);
