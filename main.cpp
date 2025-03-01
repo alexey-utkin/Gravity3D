@@ -40,7 +40,9 @@ int main() {
     setMouseCallback(windowName, onMouse, nullptr);
 
     init = calcParams();
+    recenterAndZeroV();
     while (inputProcessing() && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
+        ++frameCount;
         Rect windowRect = getWindowImageRect(windowName);
         windowWidth = windowRect.width;
         windowHeight = windowRect.height;
@@ -58,7 +60,7 @@ int main() {
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
         // std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
 
-        std::cout << inactiveCount << "P: " << current.impuls << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
+        std::cout << inactiveCount << "P: " << (init.impuls - current.impuls) << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
         imshow(windowName, canvas);
     }
     destroyAllWindows();

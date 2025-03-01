@@ -38,25 +38,6 @@ inline void renderScene(Mat &canvas) {
         Particle &p = particles[i];
         if (!p.active)
             continue;
-        if (p.trace.size() > 1) {
-            // Draw each particle's trace
-            for (auto t = 1; t < p.trace.size(); ++t) {
-                const Vec3d &prev = p.trace[t - 1];
-                const Vec3d &current = p.trace[t];
-
-                // Project 3D points to perspective 2D points
-                Point p1 = projectPerspective(prev);
-                Point p2 = projectPerspective(current);
-
-                // Fade color effect for older trace points
-                int intensity = (255 * t) / cTailSize;
-                Scalar color(intensity, intensity, intensity); // Grayscale based on trace age
-#pragma omp critical(canvas)
-                {
-                    line(canvas, p1, p2, color, 1);
-                }
-            }
-        }
 
         // Draw the particles.
         // Project 3D point to 2D perspective point
@@ -65,13 +46,12 @@ inline void renderScene(Mat &canvas) {
             // Skip rendering circles out of bounds.
             continue;
         }
-
         // Track the maximum radius in screen space
         double radius = 0.0;
         for (const auto &dir : directions) {
             // Compute a surface point in 3D by moving along the current direction
             // Project the surface point into 2D
-            Point surfacePoint2D = projectPerspective(p.position + (p.realR * dir));
+            Point surfacePoint2D = projectPerspective(p.position + (p.showR * dir));
             // Compute 2D distance between the center and the projected surface point
             // Update the maximum radius
             radius = std::max(maxRadius, norm(Vec2i(surfacePoint2D - center)));
@@ -87,6 +67,24 @@ inline void renderScene(Mat &canvas) {
 #pragma omp critical(canvas)
         {
             circle(canvas, center, radius, Scalar(b, g, r), FILLED);
+        }
+
+        int sizeTrace = p.trace.size();
+        if (sizeTrace > 1) {
+            Point p1 = center;
+            // Draw each particle's trace
+            for (auto t = 0; t < sizeTrace; ++t) {
+                // Project 3D points to perspective 2D points
+                Point p2 = projectPerspective(p.trace[t]);
+                // Fade color effect for older trace points
+                const int intensity = 255 * (sizeTrace - t + 1) / (sizeTrace + 1);
+                const Scalar color(intensity, intensity, intensity); // Grayscale based on trace age
+#pragma omp critical(canvas)
+                {
+                    line(canvas, p1, p2, color, 1);
+                }
+                p1 = p2;
+            }
         }
     }
 }

@@ -49,7 +49,7 @@ inline SystemParams renormalize(SystemParams &init, SystemParams &current) {
     Matx33d I_inv;
     invert(current.inertialTensor, I_inv, DECOMP_SVD); // Compute inverse of inertia tensor
     Vec3d A = I_inv * (current.momentum - init.momentum);
-    Vec3d V = (current.impuls - init.impuls) / init.q;
+    Vec3d dV = -(current.impuls - init.impuls) / init.q;
 #pragma omp parallel
     {
 #pragma omp for schedule(static)
@@ -57,16 +57,15 @@ inline SystemParams renormalize(SystemParams &init, SystemParams &current) {
             Particle &p = particles[i];
             if (!p.active)
                 continue; // Skip inactive particles
-            p.velocity -= V + A.cross(p.position);
+            p.velocity += dV - A.cross(p.position);
         }
     }
-
     return init;
 }
 
-
-inline SystemParams recenterAndZeroV(SystemParams &init) {
+inline void recenterAndZeroV() {
 #pragma omp barrier
+    Vec3d pos = init.position;
     Vec3d V = init.impuls / init.q;
 #pragma omp parallel
     {
@@ -75,9 +74,9 @@ inline SystemParams recenterAndZeroV(SystemParams &init) {
             Particle &p = particles[i];
             if (!p.active)
                 continue; // Skip inactive particles
-            p.position -= init.position;
+            p.position -= pos;
             p.velocity -= V;
         }
     }
-    return calcParams();
+    init = calcParams();
 }

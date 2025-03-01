@@ -83,18 +83,30 @@ bool inputProcessing() {
     default:
         break;
     case '+':
-        zoom += 0.1; // Zoom in
+        zoom *= 1.1; // Zoom in
         break;
     case '-':
-        zoom = max(0.1, zoom - 0.1); // Zoom out
+        zoom = max(1e-3, zoom*0.9); // Zoom out
+        break;
+    case '.':
+    case '>':
+        frameCountPerTrace *= 5;
+        break;
+    case ',':
+    case '<' :
+        frameCountPerTrace /= 5;
+        if (frameCountPerTrace < 1) {
+            frameCountPerTrace = 1;
+        }
         break;
     case ' ':
         cameraAngleX = 0.0;
         cameraAngleY = 0.0;
         zoom = 1.0;
+        frameCountPerTrace = 1;
         break;
     case 'c':
-        init = recenterAndZeroV(init);
+        recenterAndZeroV();
         break;
     case 27: // ESC key
     case 'q':

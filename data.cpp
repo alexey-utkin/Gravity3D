@@ -18,6 +18,8 @@ const double radiusC = (exp(maxRadius) - 1) / maxQ;
 double totalPotentialEnergy = 0.0;
 double totalKineticEnergy = 0.0;
 int inactiveCount = 0;
+int frameCount = 0;
+int frameCountPerTrace = 10;
 
 // Random generator
 double rnd() { return rand() / 32767.0; }
@@ -36,9 +38,12 @@ struct Particle {
     deque<Vec3d> trace;
 
     void addTrace() {
-        trace.push_back(position);
+        if ((frameCount % frameCountPerTrace) != 0)
+            return;
+
+        trace.push_front(position);
         if (trace.size() > cTailSize) {
-            trace.pop_front();
+            trace.pop_back();
         }
     }
 
@@ -85,7 +90,7 @@ struct SystemParams {
     Vec3d impuls{0, 0, 0};
     Vec3d momentum{0, 0, 0};
 
-    Matx33d inertialTensor = Matx33d::eye();
+    Matx33d inertialTensor = Matx33d::zeros();
     double q{0};
 };
 
