@@ -63,10 +63,15 @@ inline SystemParams renormalize(SystemParams &init, SystemParams &current) {
     return init;
 }
 
-inline void recenterAndZeroV() {
+inline void recenterAndZeroV(bool forObserver) {
 #pragma omp barrier
-    Vec3d pos = init.position;
-    Vec3d V = init.impuls / init.q;
+    forObserver &= (observerIndex >= 0 && particles[observerIndex].active);
+    Vec3d pos = forObserver
+                    ? particles[observerIndex].position
+                    : init.position;
+    Vec3d V = forObserver
+                  ? particles[observerIndex].velocity
+                  : init.impuls / init.q;
 #pragma omp parallel
     {
 #pragma omp for schedule(static)
@@ -75,6 +80,7 @@ inline void recenterAndZeroV() {
             if (!p.active)
                 continue; // Skip inactive particles
             p.position -= pos;
+            p.shiftTrace(pos);
             p.velocity -= V;
         }
     }

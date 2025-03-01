@@ -56,9 +56,6 @@ bool rotating = false;
 double cameraAngleX = 0.0, cameraAngleY = 0.0;
 double zoom = 1.0;
 
-int observerIndex = -1;
-Vec3d observer{0, 0, 0};
-
 const char windowName[] = "Simulation";
 
 // Mouse callback for rotation and zoom
@@ -118,8 +115,11 @@ bool inputProcessing() {
         observer = {0, 0, 0};
         observerIndex = -1;
         break;
+    case 'C':
+        recenterAndZeroV(true);
+        break;
     case 'c':
-        recenterAndZeroV();
+        recenterAndZeroV(false);
         break;
     case 27: // ESC key
     case 'q':

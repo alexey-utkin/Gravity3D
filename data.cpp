@@ -101,3 +101,5 @@ struct SystemParams {
 
 const Matx33d E = Matx33d::eye();
 SystemParams init;
+int observerIndex = -1;
+Vec3d observer{0, 0, 0};

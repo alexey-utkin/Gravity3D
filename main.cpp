@@ -42,7 +42,7 @@ int main() {
     setMouseCallback(windowName, onMouse, nullptr);
 
     init = calcParams();
-    recenterAndZeroV();
+    recenterAndZeroV(false);
     while (inputProcessing() && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
         ++frameCount;
         Rect windowRect = getWindowImageRect(windowName);
