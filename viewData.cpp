@@ -72,8 +72,8 @@ void onMouse(int event, int x, int y, int flags, void *) {
         cameraAngleX += dy * 0.005;
         lastMousePos = Point(x, y);
     } else if (event == EVENT_MOUSEWHEEL) {
-        zoom += (flags > 0) ? 0.1 : -0.1;
-        zoom = max(0.1, zoom);
+        zoom *= (flags > 0) ? 1.1 : 0.9;
+        zoom = max(1e-6, zoom);
     }
 }
 
@@ -94,11 +94,12 @@ bool inputProcessing() {
         zoom *= 1.1; // Zoom in
         break;
     case '-':
-        zoom = max(1e-3, zoom * 0.9); // Zoom out
+        zoom = max(1e-6, zoom * 0.9); // Zoom out
         break;
     case '.':
     case '>':
         frameCountPerTrace *= 5;
+        cTailSize = max(10, frameCountPerTrace/100);
         break;
     case ',':
     case '<':
@@ -106,6 +107,7 @@ bool inputProcessing() {
         if (frameCountPerTrace < 1) {
             frameCountPerTrace = 1;
         }
+        cTailSize = max(10, frameCountPerTrace/100);
         break;
     case ' ':
         cameraAngleX = 0.0;

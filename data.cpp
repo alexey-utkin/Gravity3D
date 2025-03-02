@@ -7,7 +7,7 @@ int windowHeight = HEIGHT;
 
 constexpr int cParticles = 2000;
 constexpr int cBlackHole = 500;
-constexpr int cTailSize = 10;
+int cTailSize = 10;
 constexpr double maxQ = 1;
 constexpr double maxRadius = 2;
 constexpr double minDist = 1e-6;

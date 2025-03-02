@@ -78,8 +78,9 @@ inline void updateParticles() {
             continue;
         }
         p.addTrace();
-        p.position += p.velocity;
-        p.velocity += p.force / p.q();
+        auto a = p.force / p.q();
+        p.position += p.velocity + a * 0.5;
+        p.velocity += a;
         p.force = {0, 0, 0};
         totalKineticEnergy += p.velocity.dot(p.velocity) * p.q() * 0.5;
     }
