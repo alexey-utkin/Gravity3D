@@ -42,7 +42,7 @@ bool Simulation::inputProcessing() {
     case '.':
     case '>':
         frameCountPerTrace *= 5;
-        cTailSize = max(10, frameCountPerTrace/100);
+        cTailSize = max(50, frameCountPerTrace/100);
         break;
     case ',':
     case '<':
@@ -50,7 +50,7 @@ bool Simulation::inputProcessing() {
         if (frameCountPerTrace < 1) {
             frameCountPerTrace = 1;
         }
-        cTailSize = max(10, frameCountPerTrace/100);
+        cTailSize = max(50, frameCountPerTrace/100);
         break;
     case ' ':
         camera.angleX = 0.0;

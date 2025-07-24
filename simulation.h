@@ -11,7 +11,6 @@ struct Simulation {
     static constexpr int cBlackHole = 500;
 
     Simulation();
-    ~Simulation() = default;
 
     void initParams() {  init = calcParams(); }
 
@@ -40,16 +39,16 @@ struct Simulation {
     bool inputProcessing();
 
     // Simulation state
-    int numThreads;
-    int cTailSize;
+    int numThreads = 1;
+    int cTailSize = 10;
     double totalPotentialEnergy;
-    double totalKineticEnergy;
-    int inactiveCount;
-    int frameCount;
-    int frameCountPerTrace;
-    SystemParams init;
-    int observerIndex;
-    Vec3d observer;
+    double totalKineticEnergy = 0.0;
+    int inactiveCount = 0;
+    int frameCount = 0;
+    int frameCountPerTrace = -1;
+    SystemParams init{};
+    int observerIndex = -1;
+    Vec3d observer{};
     
     // Particle container
     alignas(64) Particle particles[cParticles];

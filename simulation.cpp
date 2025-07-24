@@ -5,15 +5,6 @@
 #include <thread>
 
 Simulation::Simulation()
-    : numThreads(1)
-    , cTailSize(10)
-    , totalPotentialEnergy(0.0)
-    , totalKineticEnergy(0.0)
-    , inactiveCount(0)
-    , frameCount(0)
-    , frameCountPerTrace(10)
-    , observerIndex(-1)
-    , observer(0, 0, 0)
 {
     // Initialize locks
     for (auto &lock : locks) {
@@ -57,6 +48,23 @@ void Simulation::initParticles_3Centers() {
 void Simulation::sortParticles() {
     std::sort(particles, particles + cParticles);
 }
+
+// Thread synchronization
+struct Locker {
+    atomic<int> &lock;
+
+    explicit Locker(atomic<int> &l) : lock(l) {
+        int expected = 0;
+        while (!lock.compare_exchange_strong(expected, 1)) {
+            expected = 0;
+            this_thread::yield();
+        }
+    }
+
+    ~Locker() {
+        lock.store(0);
+    }
+};
 
 // Simulation methods
 double Simulation::processInteraction(int i, int j) {

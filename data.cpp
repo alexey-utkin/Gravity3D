@@ -1,9 +1,6 @@
 #include "data.h"
 #include "simulation.h"
 
-// Scalable dimensions
-const double radiusC = (exp(maxRadius) - 1) / maxQ;
-
 // Random generator
 double rnd() { return rand() / 32767.0; }
 
@@ -24,6 +21,7 @@ void Particle::shiftTrace(const Vec3d &shift) {
     }
 }
 
+const double radiusC = (exp(maxRadius) - 1) / maxQ;
 void Particle::setQ(double q) {
     if (q < minQ) {
         q = minQ;
@@ -34,22 +32,6 @@ void Particle::setQ(double q) {
 }
 
 double Particle::q() const { return _q; }
-
-bool operator<(const Particle &lhs, const Particle &rhs) {
-    return lhs._q > rhs._q;
-}
-
-// Locker implementation
-Locker::Locker(atomic<int> &l) : lock(l) {
-    int expected = 0;
-    while (!lock.compare_exchange_strong(expected, 1)) {
-        expected = 0;
-        this_thread::yield();
-    }
-}
-
-Locker::~Locker() { lock.store(0); }
-
 
 
 //using json = nlohmann::json;

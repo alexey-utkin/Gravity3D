@@ -13,7 +13,6 @@ constexpr int WIDTH = 1000;
 constexpr int HEIGHT = 1000;
 constexpr double maxQ = 1;
 constexpr double maxRadius = 2;
-extern const double radiusC;
 constexpr double minDist = 1e-6;
 constexpr double minQ = 1e-6;
 
@@ -41,17 +40,10 @@ struct Particle {
     [[nodiscard]] double q() const;
 
 protected:
-    friend bool operator<(const Particle &lhs, const Particle &rhs);
+    friend bool operator<(const Particle &lhs, const Particle &rhs) {
+        return lhs._q > rhs._q;
+    }
     double _q{};
-};
-
-bool operator<(const Particle &lhs, const Particle &rhs);
-
-// Thread synchronization
-struct Locker {
-    atomic<int> &lock;
-    explicit Locker(atomic<int> &l);
-    ~Locker();
 };
 
 // System parameters
