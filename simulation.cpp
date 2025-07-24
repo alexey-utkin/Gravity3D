@@ -112,7 +112,7 @@ double Simulation::processInteraction(int i, int j) {
     return potentialEnergyChange;
 }
 
-void Simulation::processPairInteractons() {
+void Simulation::processPairInteractions() {
     int intConst = cParticles * (cParticles - 1);
     // Update forces
     int totalInteractions = intConst / 2;
@@ -120,7 +120,7 @@ void Simulation::processPairInteractons() {
     for (auto index = 0; index < totalInteractions; ++index) {
         // Compute (i, j) indices from linear index
         int i = cParticles - 2 -
-                (int)(std::sqrt(-8 * index + 4 * intConst - 7) / 2.0 - 0.5);
+                static_cast<int>(std::sqrt(-8 * index + 4 * intConst - 7) / 2.0 - 0.5);
         int j = index + i + 1 - intConst / 2 +
                 ((cParticles - i) * ((cParticles - i) - 1)) / 2;
 
@@ -139,7 +139,7 @@ void Simulation::updateParticles() {
     inactiveCount = 0;
 
     // Update forces
-    processPairInteractons();
+    processPairInteractions();
 
 #pragma omp for schedule(static)
     // Update system params and drop force

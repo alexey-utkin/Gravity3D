@@ -20,7 +20,7 @@ public:
     // Simulation methods
     void updateParticles();
     double processInteraction(int i, int j);
-    void processPairInteractons();
+    void processPairInteractions();
 
     // Normalization methods
     SystemParams calcParams();
