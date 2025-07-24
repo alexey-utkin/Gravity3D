@@ -18,11 +18,12 @@
 using namespace cv;
 using namespace std;
 
-// Global simulation instance
-Simulation sim;
 
 // teams distribute parallel for simd
 int main() {
+    // Global simulation instance
+    Simulation sim;
+
     int numThreads = max(omp_get_max_threads() - 1, 1);
     // numThreads = 1;
     sim.setNumThreads(numThreads);
@@ -55,10 +56,9 @@ int main() {
             renderScene(canvas, sim);
         }
         SystemParams current = sim.calcParams();
-        sim.renormalize(sim.getInitParams(), current);
+        sim.renormalize();
 
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
-        // std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
 
         std::cout << sim.getInactiveCount() << "P: " << (sim.getInitParams().impuls - current.impuls) 
                  << " E: " << (sim.getTotalKineticEnergy() + sim.getTotalPotentialEnergy()) 

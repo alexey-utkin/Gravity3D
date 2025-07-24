@@ -11,12 +11,22 @@ using namespace std;
 // Constants
 constexpr int WIDTH = 1000;
 constexpr int HEIGHT = 1000;
-constexpr int cParticles = 2000;
-constexpr int cBlackHole = 500;
 constexpr double maxQ = 1;
 constexpr double maxRadius = 2;
+extern const double radiusC;
 constexpr double minDist = 1e-6;
 constexpr double minQ = 1e-6;
+
+// Global variables
+extern int windowWidth;
+extern int windowHeight;
+extern const Matx33d E;
+
+// Utility functions
+double rnd();
+
+// Forward declaration
+class Simulation;
 
 // Particle structure
 struct Particle {
@@ -30,7 +40,7 @@ struct Particle {
     bool active = true;
     deque<Vec3d> trace;
 
-    void addTrace();
+    void addTrace(const Simulation& sim);
     void shiftTrace(const Vec3d &shift);
     void setQ(double q);
     [[nodiscard]] double q() const;
@@ -58,29 +68,5 @@ struct SystemParams {
     Matx33d inertialTensor = Matx33d::zeros();
     double q{0};
 };
-
-// Global variables (to be encapsulated later)
-extern int windowWidth;
-extern int windowHeight;
-extern int cTailSize;
-extern int numThreads;
-extern const double radiusC;
-
-extern double totalPotentialEnergy;
-extern double totalKineticEnergy;
-extern int inactiveCount;
-extern int frameCount;
-extern int frameCountPerTrace;
-
-extern const Matx33d E;
-extern SystemParams init;
-extern int observerIndex;
-extern Vec3d observer;
-
-extern Particle particles[cParticles];
-extern atomic<int> locks[cParticles];
-
-// Utility functions
-double rnd();
 
 #endif // GRAVITY3D_DATA_H

@@ -1,5 +1,4 @@
 #include "viewData.h"
-#include "normalize.h"
 
 // Define the 8 corners of the cube (bounding box)
 const vector<Vec3d> cubeCorners = {
@@ -96,11 +95,11 @@ bool inputProcessing(Simulation &sim) {
         localObserverIndex++;
         
         // Find next active particle
-        while (localObserverIndex < cParticles && !sim.getParticles()[localObserverIndex].active) {
+        while (localObserverIndex < Simulation::cParticles && !sim.getParticles()[localObserverIndex].active) {
             localObserverIndex++;
         }
         
-        if (localObserverIndex >= cParticles) {
+        if (localObserverIndex >= Simulation::cParticles) {
             localObserverIndex = -1;
         }
         

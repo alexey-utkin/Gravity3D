@@ -1,8 +1,7 @@
 #include "simulation.h"
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
-#include <ctime>
+#include <omp_llvm.h>
 #include <thread>
 
 Simulation::Simulation()
@@ -26,7 +25,7 @@ Simulation::Simulation()
 void Simulation::initParticles_WithOldBlackHoles() {
     int i = 0;
     for (auto &p : particles) {
-        if (++i < cBlackHole)
+        if (++i < Simulation::cBlackHole)
             p.setQ(maxQ);
         else
             p.setQ(maxQ * exp(rnd() - 1.0));
@@ -163,7 +162,7 @@ void Simulation::updateParticles() {
             localInactiveCount += 1;
             continue;
         }
-        p.addTrace();
+        p.addTrace(*this);
         auto a = p.force / p.q();
         p.position += p.velocity + a * 0.5;
         p.velocity += a;
@@ -186,7 +185,7 @@ void Simulation::updateParticles() {
 SystemParams Simulation::calcParams() {
     // Compute the center of mass based on active particles
 #pragma omp barrier
-    vector<SystemParams> centerOfMasses(numThreads, SystemParams{});
+    vector<SystemParams> centerOfMassesInThreadFraction(numThreads, SystemParams{});
 #pragma omp parallel
     {
 #pragma omp for schedule(static)
@@ -194,7 +193,7 @@ SystemParams Simulation::calcParams() {
             Particle &p = particles[i];
             if (!p.active)
                 continue; // Skip inactive particles
-            SystemParams &tl_cm = centerOfMasses[omp_get_thread_num()];
+            SystemParams &tl_cm = centerOfMassesInThreadFraction[omp_get_thread_num()];
             double q = p.q();
             Vec3d r = p.position;
             Vec3d v = p.velocity;
@@ -212,7 +211,7 @@ SystemParams Simulation::calcParams() {
     SystemParams cm{};
 #pragma omp single
     {
-        for (const auto &threadCM : centerOfMasses) {
+        for (const auto &threadCM : centerOfMassesInThreadFraction) {
             cm.position += threadCM.position;
             cm.impuls += threadCM.impuls;
             cm.momentum += threadCM.momentum;
@@ -229,7 +228,10 @@ SystemParams Simulation::calcParams() {
     return cm;
 }
 
-SystemParams Simulation::renormalize(SystemParams &init, SystemParams &current) {
+void Simulation::renormalize() {
+    SystemParams &init = getInitParams();
+    const SystemParams &current = calcParams();
+
 #pragma omp barrier
     Matx33d I_inv;
     invert(current.inertialTensor, I_inv, DECOMP_SVD); // Compute inverse of inertia tensor
@@ -245,7 +247,6 @@ SystemParams Simulation::renormalize(SystemParams &init, SystemParams &current) 
             p.velocity += dV - A.cross(p.position);
         }
     }
-    return init;
 }
 
 void Simulation::recenterAndZeroV(bool forObserver) {

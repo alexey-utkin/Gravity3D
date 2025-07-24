@@ -1,29 +1,22 @@
 #include "data.h"
+#include "simulation.h"
 
 // Scalable dimensions
 int windowWidth = WIDTH;
 int windowHeight = HEIGHT;
-
-int cTailSize = 10;
-int numThreads = 1;
 const double radiusC = (exp(maxRadius) - 1) / maxQ;
-
-double totalPotentialEnergy = 0.0;
-double totalKineticEnergy = 0.0;
-int inactiveCount = 0;
-int frameCount = 0;
-int frameCountPerTrace = 10;
+const Matx33d E = Matx33d::eye();
 
 // Random generator
 double rnd() { return rand() / 32767.0; }
 
 // Particle methods implementation
-void Particle::addTrace() {
-    if ((frameCount % frameCountPerTrace) != 0)
+void Particle::addTrace(const Simulation& sim) {
+    if ((sim.getFrameCount() % sim.getFrameCountPerTrace()) != 0)
         return;
 
     trace.push_front(position);
-    if (trace.size() > cTailSize) {
+    if (trace.size() > sim.getTailSize()) {
         trace.pop_back();
     }
 }
@@ -49,10 +42,6 @@ bool operator<(const Particle &lhs, const Particle &rhs) {
     return lhs._q > rhs._q;
 }
 
-// Particle container
-alignas(64) Particle particles[cParticles];
-alignas(64) atomic<int> locks[cParticles];
-
 // Locker implementation
 Locker::Locker(atomic<int> &l) : lock(l) {
     int expected = 0;
@@ -64,10 +53,7 @@ Locker::Locker(atomic<int> &l) : lock(l) {
 
 Locker::~Locker() { lock.store(0); }
 
-const Matx33d E = Matx33d::eye();
-SystemParams init;
-int observerIndex = -1;
-Vec3d observer{0, 0, 0};
+
 
 //using json = nlohmann::json;
 

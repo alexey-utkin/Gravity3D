@@ -3,10 +3,12 @@
 
 #include "data.h"
 #include <atomic>
-#include <omp.h>
 
 class Simulation {
 public:
+    static constexpr int cParticles = 2000;
+    static constexpr int cBlackHole = 500;
+
     Simulation();
     ~Simulation() = default;
 
@@ -22,7 +24,7 @@ public:
 
     // Normalization methods
     SystemParams calcParams();
-    SystemParams renormalize(SystemParams &init, SystemParams &current);
+    void renormalize();
     void recenterAndZeroV(bool forObserver);
 
     // Accessors
@@ -55,9 +57,9 @@ private:
     // Simulation state
     int numThreads;
     int cTailSize;
-    double totalPotentialEnergy;
-    double totalKineticEnergy;
-    int inactiveCount;
+    volatile double totalPotentialEnergy;
+    volatile double totalKineticEnergy;
+    volatile int inactiveCount;
     int frameCount;
     int frameCountPerTrace;
     SystemParams init;

@@ -45,7 +45,7 @@ void renderScene(Mat &canvas, Simulation &sim) {
         line(canvas, p1, p2, color, 1);
     }
 #pragma omp for schedule(static)
-    for (auto i = 0; i < cParticles; ++i) {
+    for (auto i = 0; i < Simulation::cParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active)
             continue;
