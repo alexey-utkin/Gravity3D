@@ -1,12 +1,19 @@
+#include "render.h"
+
 // Render Scene Function
-inline void renderScene(Mat &canvas) {
+void renderScene(Mat &canvas, Simulation &sim) {
     // Perspective projection parameters
     double f = 300 * zoom;                // Focal length
     const double near = windowHeight / 2; // Near clipping plane depth to avoid division by zero.
 
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
-    if (observerIndex >= 0 ) {
+    
+    int observerIndex = sim.getObserverIndex();
+    Vec3d &observer = sim.getObserver();
+    Particle *particles = sim.getParticles();
+    
+    if (observerIndex >= 0) {
         observer = particles[observerIndex].position;
     }
 

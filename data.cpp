@@ -1,17 +1,10 @@
-constexpr int WIDTH = 1000;
-constexpr int HEIGHT = 1000;
+#include "data.h"
 
 // Scalable dimensions
 int windowWidth = WIDTH;
 int windowHeight = HEIGHT;
 
-constexpr int cParticles = 2000;
-constexpr int cBlackHole = 500;
 int cTailSize = 10;
-constexpr double maxQ = 1;
-constexpr double maxRadius = 2;
-constexpr double minDist = 1e-6;
-constexpr double minQ = 1e-6;
 int numThreads = 1;
 const double radiusC = (exp(maxRadius) - 1) / maxQ;
 
@@ -24,49 +17,33 @@ int frameCountPerTrace = 10;
 // Random generator
 double rnd() { return rand() / 32767.0; }
 
-// Particle structure
-struct Particle {
-    Vec3d position{};
-    Vec3d velocity{};
-    Vec3d force{};
+// Particle methods implementation
+void Particle::addTrace() {
+    if ((frameCount % frameCountPerTrace) != 0)
+        return;
 
-    double realR{};
-    double showR{};
-
-    bool active = true;
-    deque<Vec3d> trace;
-
-    void addTrace() {
-        if ((frameCount % frameCountPerTrace) != 0)
-            return;
-
-        trace.push_front(position);
-        if (trace.size() > cTailSize) {
-            trace.pop_back();
-        }
+    trace.push_front(position);
+    if (trace.size() > cTailSize) {
+        trace.pop_back();
     }
+}
 
-    void shiftTrace(const Vec3d &shift) {
-        for (auto &t : trace) {
-            t -= shift;
-        }
+void Particle::shiftTrace(const Vec3d &shift) {
+    for (auto &t : trace) {
+        t -= shift;
     }
+}
 
-    void setQ(double q) {
-        if (q < minQ) {
-            q = minQ;
-        }
-        _q = q;
-        showR = log(1 + radiusC * _q);
-        realR = max(showR / 2, minDist / 2);
+void Particle::setQ(double q) {
+    if (q < minQ) {
+        q = minQ;
     }
+    _q = q;
+    showR = log(1 + radiusC * _q);
+    realR = max(showR / 2, minDist / 2);
+}
 
-    [[nodiscard]] double q() const { return _q; }
-
-protected:
-    friend bool operator<(const Particle &lhs, const Particle &rhs);
-    double _q{};
-};
+double Particle::q() const { return _q; }
 
 bool operator<(const Particle &lhs, const Particle &rhs) {
     return lhs._q > rhs._q;
@@ -76,30 +53,55 @@ bool operator<(const Particle &lhs, const Particle &rhs) {
 alignas(64) Particle particles[cParticles];
 alignas(64) atomic<int> locks[cParticles];
 
-struct Locker {
-    atomic<int> &lock;
-
-    explicit Locker(atomic<int> &l) : lock(l) {
-        int expected = 0;
-        while (!lock.compare_exchange_strong(expected, 1)) {
-            expected = 0;
-            this_thread::yield();
-        }
+// Locker implementation
+Locker::Locker(atomic<int> &l) : lock(l) {
+    int expected = 0;
+    while (!lock.compare_exchange_strong(expected, 1)) {
+        expected = 0;
+        this_thread::yield();
     }
+}
 
-    ~Locker() { lock.store(0); }
-};
-
-struct SystemParams {
-    Vec3d position{0, 0, 0};
-    Vec3d impuls{0, 0, 0};
-    Vec3d momentum{0, 0, 0};
-
-    Matx33d inertialTensor = Matx33d::zeros();
-    double q{0};
-};
+Locker::~Locker() { lock.store(0); }
 
 const Matx33d E = Matx33d::eye();
 SystemParams init;
 int observerIndex = -1;
 Vec3d observer{0, 0, 0};
+
+//using json = nlohmann::json;
+
+// Serialization for Vec3d (if not implemented already)
+//
+//namespace nlohmann {
+//
+//static auto to_json(const Vec3d &vec) noexcept -> json {
+//    return json{vec[0], vec[1], vec[2]};
+//}
+//
+//void from_json(const json &j, Vec3d &vec) {
+//            vec = Vec3d(j[0], j[1], j[2]);
+//}
+//
+//json w(const Matx33d &mat) {
+//    return json{mat(0, 0), mat(0, 1), mat(0, 2),
+//             mat(1, 0), mat(1, 1), mat(1, 2),
+//             mat(2, 0), mat(2, 1), mat(2, 2)};
+//}
+//
+//json vecToJson(const cv::Vec3d &vec) {
+//    return json{vec[0], vec[1], vec[2]};
+//}
+//
+//void to_json(nlohmann::json &j, const SystemParams &params) {
+//    j = {
+//        {"position", params.position},  // Uses overloaded to_json for cv::Vec3d
+//        {"impuls", params.impuls},      // Uses overloaded to_json for cv::Vec3d
+//        {"momentum", params.momentum},  // Uses overloaded to_json for cv::Vec3d
+////        {"inertialTensor", w(params.inertialTensor)},
+//        {"q", params.q}
+//    };
+//}
+//
+//
+//

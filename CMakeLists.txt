@@ -11,7 +11,16 @@ set(OpenCV_DIR "D:/Downloads/opencv/build")
 find_package(OpenCV REQUIRED)
 
 # Add the executable
-add_executable(Gravity3D main.cpp)
+add_executable(Gravity3D
+        data.cpp
+        init.cpp
+        interaction.cpp
+        main.cpp
+        normalize.cpp
+        simulation.cpp
+        render.cpp
+        viewData.cpp
+)
 
 # Include OpenCV headers
 include_directories(${OpenCV_INCLUDE_DIRS})

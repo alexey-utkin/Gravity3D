@@ -1,3 +1,6 @@
+#include "viewData.h"
+#include "normalize.h"
+
 // Define the 8 corners of the cube (bounding box)
 const vector<Vec3d> cubeCorners = {
     {-WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-left
@@ -77,18 +80,31 @@ void onMouse(int event, int x, int y, int flags, void *) {
     }
 }
 
-bool inputProcessing() {
+bool inputProcessing(Simulation &sim) {
     char key = static_cast<char>(waitKey(1));
+    int localObserverIndex;
+    
     switch (key) {
     default:
         break;
     case 'o':
-        std::sort(std::begin(particles), std::end(particles));
-        for (++observerIndex; !particles[observerIndex].active && observerIndex < cParticles; ++observerIndex)
-            ;
-        if (observerIndex >= cParticles) {
-            observerIndex = -1;
+        // Sort particles by mass
+        sim.sortParticles();
+        
+        // Update observer index
+        localObserverIndex = sim.getObserverIndex();
+        localObserverIndex++;
+        
+        // Find next active particle
+        while (localObserverIndex < cParticles && !sim.getParticles()[localObserverIndex].active) {
+            localObserverIndex++;
         }
+        
+        if (localObserverIndex >= cParticles) {
+            localObserverIndex = -1;
+        }
+        
+        sim.setObserverIndex(localObserverIndex);
         break;
     case '+':
         zoom *= 1.1; // Zoom in
@@ -98,30 +114,30 @@ bool inputProcessing() {
         break;
     case '.':
     case '>':
-        frameCountPerTrace *= 5;
-        cTailSize = max(10, frameCountPerTrace/100);
+        sim.setFrameCountPerTrace(sim.getFrameCountPerTrace() * 5);
+        sim.setTailSize(max(10, sim.getFrameCountPerTrace()/100));
         break;
     case ',':
     case '<':
-        frameCountPerTrace /= 5;
-        if (frameCountPerTrace < 1) {
-            frameCountPerTrace = 1;
+        sim.setFrameCountPerTrace(sim.getFrameCountPerTrace() / 5);
+        if (sim.getFrameCountPerTrace() < 1) {
+            sim.setFrameCountPerTrace(1);
         }
-        cTailSize = max(10, frameCountPerTrace/100);
+        sim.setTailSize(max(10, sim.getFrameCountPerTrace()/100));
         break;
     case ' ':
         cameraAngleX = 0.0;
         cameraAngleY = 0.0;
         zoom = 1.0;
-        frameCountPerTrace = 1;
-        observer = {0, 0, 0};
-        observerIndex = -1;
+        sim.setFrameCountPerTrace(1);
+        sim.getObserver() = {0, 0, 0};
+        sim.setObserverIndex(-1);
         break;
     case 'C':
-        recenterAndZeroV(true);
+        sim.recenterAndZeroV(true);
         break;
     case 'c':
-        recenterAndZeroV(false);
+        sim.recenterAndZeroV(false);
         break;
     case 27: // ESC key
     case 'q':

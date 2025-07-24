@@ -6,45 +6,43 @@
                       Arthur C.
 */
 
-#include <atomic>
-#include <deque>
 #include <iostream>
 #include <omp.h>
 #include <opencv2/opencv.hpp>
-#include <thread>
+
+#include "data.h"
+#include "simulation.h"
+#include "viewData.h"
+#include "render.h"
 
 using namespace cv;
 using namespace std;
 
-// @format: off
-#include "data.cpp"
-#include "init.cpp"
-#include "interaction.cpp"
-#include "normalize.cpp"
-#include "viewData.cpp"
-#include "render.cpp"
-// @format: on
+// Global simulation instance
+Simulation sim;
 
+// teams distribute parallel for simd
 int main() {
-    numThreads = max(omp_get_max_threads() - 1, 1);
+    int numThreads = max(omp_get_max_threads() - 1, 1);
     // numThreads = 1;
+    sim.setNumThreads(numThreads);
     omp_set_num_threads(numThreads);
     cout << "Running with " << numThreads << " threads." << endl;
 
     srand(time(nullptr));
     // initParticles:
-    initParticles_3Centers();
-    std::sort(std::begin(particles), std::end(particles));
+    sim.initParticles_3Centers();
+    sim.sortParticles();
 
-    //initParticles_WithOldBlackHoles();
+    //sim.initParticles_WithOldBlackHoles();
 
     namedWindow(windowName, WINDOW_NORMAL);
     setMouseCallback(windowName, onMouse, nullptr);
 
-    init = calcParams();
-    recenterAndZeroV(false);
-    while (inputProcessing() && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
-        ++frameCount;
+    sim.getInitParams() = sim.calcParams();
+    sim.recenterAndZeroV(false);
+    while (inputProcessing(sim) && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
+        sim.incrementFrameCount();
         Rect windowRect = getWindowImageRect(windowName);
         windowWidth = windowRect.width;
         windowHeight = windowRect.height;
@@ -53,16 +51,18 @@ int main() {
         auto start = chrono::high_resolution_clock::now();
 #pragma omp parallel
         {
-            updateParticles();
-            renderScene(canvas);
+            sim.updateParticles();
+            renderScene(canvas, sim);
         }
-        SystemParams current = calcParams();
-        renormalize(init, current);
+        SystemParams current = sim.calcParams();
+        sim.renormalize(sim.getInitParams(), current);
 
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
         // std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
 
-        std::cout << inactiveCount << "P: " << (init.impuls - current.impuls) << " E: " << (totalKineticEnergy + totalPotentialEnergy) << ", " << totalKineticEnergy << ", " << totalPotentialEnergy << std::endl;
+        std::cout << sim.getInactiveCount() << "P: " << (sim.getInitParams().impuls - current.impuls) 
+                 << " E: " << (sim.getTotalKineticEnergy() + sim.getTotalPotentialEnergy()) 
+                 << ", " << sim.getTotalKineticEnergy() << ", " << sim.getTotalPotentialEnergy() << std::endl;
         imshow(windowName, canvas);
     }
     destroyAllWindows();
