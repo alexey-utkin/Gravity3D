@@ -1,4 +1,6 @@
 #include "render.h"
+#include "simulation.h"
+#include "viewData.h"
 
 // Render Scene Function
 void renderScene(Mat &canvas, Simulation &sim) {

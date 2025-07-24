@@ -25,7 +25,7 @@ Simulation::Simulation()
 void Simulation::initParticles_WithOldBlackHoles() {
     int i = 0;
     for (auto &p : particles) {
-        if (++i < Simulation::cBlackHole)
+        if (++i < cBlackHole)
             p.setQ(maxQ);
         else
             p.setQ(maxQ * exp(rnd() - 1.0));
@@ -113,31 +113,23 @@ double Simulation::processInteraction(int i, int j) {
 }
 
 void Simulation::processPairInteractons() {
+    int intConst = cParticles * (cParticles - 1);
     // Update forces
-    int totalInteractions = (cParticles * (cParticles - 1)) / 2;
-#pragma omp barrier
-    
-    // Use thread-local variable for reduction
-    double localPotentialEnergy = 0.0;
-    
+    int totalInteractions = intConst / 2;
 #pragma omp for schedule(static) // alt: Dynamic scheduling with chunk size 64
     for (auto index = 0; index < totalInteractions; ++index) {
         // Compute (i, j) indices from linear index
         int i = cParticles - 2 -
-                (int)(std::sqrt(-8 * index + 4 * cParticles * (cParticles - 1) - 7) / 2.0 - 0.5);
-        int j = index + i + 1 - (cParticles * (cParticles - 1)) / 2 +
+                (int)(std::sqrt(-8 * index + 4 * intConst - 7) / 2.0 - 0.5);
+        int j = index + i + 1 - intConst / 2 +
                 ((cParticles - i) * ((cParticles - i) - 1)) / 2;
-                
+
         // Get potential energy change from interaction
         double energyChange = processInteraction(i, j);
-        
-        // Accumulate the change to local variable
-        localPotentialEnergy += energyChange;
-    }
-    
-    // Atomically add the local sum to the member variable
+
 #pragma omp atomic
-    totalPotentialEnergy += localPotentialEnergy;
+        totalPotentialEnergy += energyChange;
+    }
 }
 
 void Simulation::updateParticles() {
@@ -148,18 +140,14 @@ void Simulation::updateParticles() {
 
     // Update forces
     processPairInteractons();
-    
-    // Use thread-local variables for reduction
-    double localPotentialEnergy = 0.0;
-    int localInactiveCount = 0;
-    double localKineticEnergy = 0.0;
-    
+
 #pragma omp for schedule(static)
     // Update system params and drop force
     for (auto i = 0; i < cParticles; ++i) {
         Particle &p = particles[i];
         if (!p.active) {
-            localInactiveCount += 1;
+#pragma omp atomic
+            inactiveCount += 1;
             continue;
         }
         p.addTrace(*this);
@@ -167,18 +155,9 @@ void Simulation::updateParticles() {
         p.position += p.velocity + a * 0.5;
         p.velocity += a;
         p.force = {0, 0, 0};
-        localKineticEnergy += p.velocity.dot(p.velocity) * p.q() * 0.5;
+#pragma omp atomic
+        totalKineticEnergy += p.velocity.dot(p.velocity) * p.q() * 0.5;
     }
-    
-    // Atomically add the local sums to the member variables
-#pragma omp atomic
-    totalPotentialEnergy += localPotentialEnergy;
-    
-#pragma omp atomic
-    inactiveCount += localInactiveCount;
-    
-#pragma omp atomic
-    totalKineticEnergy += localKineticEnergy;
 }
 
 // Normalization methods

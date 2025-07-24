@@ -2,8 +2,6 @@
 #define GRAVITY3D_RENDER_H
 
 #include "data.h"
-#include "viewData.h"
-#include "simulation.h"
 #include <opencv2/opencv.hpp>
 
 // Function declaration for rendering

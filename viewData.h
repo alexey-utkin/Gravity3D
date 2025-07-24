@@ -2,7 +2,6 @@
 #define GRAVITY3D_VIEWDATA_H
 
 #include "data.h"
-#include "simulation.h"
 #include <opencv2/opencv.hpp>
 
 // External constants and variables

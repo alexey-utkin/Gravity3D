@@ -1,4 +1,5 @@
 #include "viewData.h"
+#include "simulation.h"
 
 // Define the 8 corners of the cube (bounding box)
 const vector<Vec3d> cubeCorners = {

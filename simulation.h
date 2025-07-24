@@ -57,9 +57,9 @@ private:
     // Simulation state
     int numThreads;
     int cTailSize;
-    volatile double totalPotentialEnergy;
-    volatile double totalKineticEnergy;
-    volatile int inactiveCount;
+    double totalPotentialEnergy;
+    double totalKineticEnergy;
+    int inactiveCount;
     int frameCount;
     int frameCountPerTrace;
     SystemParams init;
