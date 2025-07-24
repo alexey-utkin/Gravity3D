@@ -6,7 +6,7 @@
 void renderScene(Mat &canvas, Simulation &sim) {
     // Perspective projection parameters
     double f = 300 * zoom;                // Focal length
-    const double near = windowHeight / 2; // Near clipping plane depth to avoid division by zero.
+    const double near = canvas.rows / 2; // Near clipping plane depth to avoid division by zero.
 
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
@@ -32,8 +32,8 @@ void renderScene(Mat &canvas, Simulation &sim) {
         if (adjustedZ <= 0.1)
             adjustedZ = 0.1;
 
-        int x_proj = static_cast<int>(f * newX / adjustedZ + windowWidth / 2);
-        int y_proj = static_cast<int>(f * newY / adjustedZ + windowHeight / 2);
+        int x_proj = static_cast<int>(f * newX / adjustedZ + canvas.cols / 2);
+        int y_proj = static_cast<int>(f * newY / adjustedZ + canvas.rows / 2);
         return {x_proj, y_proj};
     };
 
@@ -55,7 +55,7 @@ void renderScene(Mat &canvas, Simulation &sim) {
         // Draw the particles.
         // Project 3D point to 2D perspective point
         Point center = projectPerspective(p.position);
-        if (center.x < 0 || center.y < 0 || center.x >= windowWidth || center.y >= windowHeight) {
+        if (center.x < 0 || center.y < 0 || center.x >= canvas.cols || center.y >= canvas.rows) {
             // Skip rendering circles out of bounds.
             continue;
         }

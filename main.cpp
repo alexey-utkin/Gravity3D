@@ -45,9 +45,7 @@ int main() {
     while (inputProcessing(sim) && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
         sim.incrementFrameCount();
         Rect windowRect = getWindowImageRect(windowName);
-        windowWidth = windowRect.width;
-        windowHeight = windowRect.height;
-        Mat canvas = Mat::zeros(windowHeight, windowWidth, CV_8UC3);
+        Mat canvas = Mat::zeros(windowRect.height, windowRect.width, CV_8UC3);
 
         auto start = chrono::high_resolution_clock::now();
 #pragma omp parallel

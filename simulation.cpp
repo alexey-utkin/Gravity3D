@@ -160,6 +160,8 @@ void Simulation::updateParticles() {
     }
 }
 
+const Matx33d E = Matx33d::eye();
+
 // Normalization methods
 SystemParams Simulation::calcParams() {
     // Compute the center of mass based on active particles
@@ -208,7 +210,6 @@ SystemParams Simulation::calcParams() {
 }
 
 void Simulation::renormalize() {
-    SystemParams &init = getInitParams();
     const SystemParams &current = calcParams();
 
 #pragma omp barrier

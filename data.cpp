@@ -2,10 +2,7 @@
 #include "simulation.h"
 
 // Scalable dimensions
-int windowWidth = WIDTH;
-int windowHeight = HEIGHT;
 const double radiusC = (exp(maxRadius) - 1) / maxQ;
-const Matx33d E = Matx33d::eye();
 
 // Random generator
 double rnd() { return rand() / 32767.0; }

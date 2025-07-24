@@ -17,11 +17,6 @@ extern const double radiusC;
 constexpr double minDist = 1e-6;
 constexpr double minQ = 1e-6;
 
-// Global variables
-extern int windowWidth;
-extern int windowHeight;
-extern const Matx33d E;
-
 // Utility functions
 double rnd();
 
