@@ -18,6 +18,7 @@
 using namespace cv;
 using namespace std;
 
+constexpr char windowName[] = "Simulation";
 
 // teams distribute parallel for simd
 int main() {
@@ -36,7 +37,7 @@ int main() {
     sim.sortParticles();
 
     namedWindow(windowName, WINDOW_NORMAL);
-    setMouseCallback(windowName, onMouse, nullptr);
+    setMouseCallback(windowName, Camera::onMouse, &sim.camera);
 
     sim.initParams();
     sim.recenterAndZeroV(false);

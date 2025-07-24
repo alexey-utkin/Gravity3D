@@ -4,6 +4,8 @@
 #include "data.h"
 #include <atomic>
 
+#include "viewData.h"
+
 struct Simulation {
     static constexpr int cParticles = 2000;
     static constexpr int cBlackHole = 500;
@@ -52,6 +54,9 @@ struct Simulation {
     // Particle container
     alignas(64) Particle particles[cParticles];
     alignas(64) atomic<int> locks[cParticles];
+
+    // UX
+    Camera camera;
 };
 
 #endif // GRAVITY3D_SIMULATION_H

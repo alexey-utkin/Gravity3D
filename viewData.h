@@ -6,18 +6,18 @@
 using namespace cv;
 using namespace std;
 
-// External constants and variables
-extern const std::vector<Vec3d> cubeCorners;
-extern const std::vector<std::pair<int, int>> cubeEdges;
-extern const Vec3d directions[3];
-extern const std::vector<Scalar> colors;
-extern Point lastMousePos;
-extern bool rotating;
-extern double cameraAngleX, cameraAngleY;
-extern double zoom;
-extern const char windowName[];
+// Camera structure to hold camera-related variables
+struct Camera {
+    Point lastMousePos;
+    bool rotating = false;
+    double angleX = 0.0;
+    double angleY = 0.0;
+    double zoom = 1.0;
 
-// Function declarations for user interaction
-void onMouse(int event, int x, int y, int flags, void *);
+    void _onMouse(int event, int x, int y, int flags);
+    static void onMouse(int event, int x, int y, int flags, void *pCamera) {
+        static_cast<Camera *>(pCamera)->_onMouse(event, x, y, flags);
+    }
+};
 
 #endif // GRAVITY3D_VIEWDATA_H

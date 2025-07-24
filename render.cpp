@@ -2,14 +2,66 @@
 #include "simulation.h"
 #include "viewData.h"
 
+// Define the 8 corners of the cube (bounding box)
+const vector<Vec3d> cubeCorners = {
+    {-WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4}, // Bottom-back-left
+    {WIDTH / 4, -HEIGHT / 4, -HEIGHT / 4},  // Bottom-back-right
+    {WIDTH / 4, HEIGHT / 4, -HEIGHT / 4},   // Bottom-front-right
+    {-WIDTH / 4, HEIGHT / 4, -HEIGHT / 4},  // Bottom-front-left
+    {-WIDTH / 4, -HEIGHT / 4, HEIGHT / 4},  // Top-back-left
+    {WIDTH / 4, -HEIGHT / 4, HEIGHT / 4},   // Top-back-right
+    {WIDTH / 4, HEIGHT / 4, HEIGHT / 4},    // Top-front-right
+    {-WIDTH / 4, HEIGHT / 4, HEIGHT / 4}    // Top-front-left
+};
+
+// Define the edges of the bounding cube (pairs of vertices)
+const vector<pair<int, int>> cubeEdges = {
+    // @formatter:off
+    {0, 1},
+    {1, 2},
+    {2, 3},
+    {3, 0}, // Bottom face
+    {4, 5},
+    {5, 6},
+    {6, 7},
+    {7, 4}, // Top face
+    {0, 4},
+    {1, 5},
+    {2, 6},
+    {3, 7} // Vertical edges
+    // @formatter:on
+};
+
+// Define orthogonal directions
+const Vec3d directions[] = {
+    Vec3d(1.0, 0.0, 0.0), // x-axis
+    Vec3d(0.0, 1.0, 0.0), // y-axis
+    Vec3d(0.0, 0.0, 1.0)  // z-axis
+};
+
+const vector<Scalar> colors = {
+    Scalar(0, 0, 255),   // Bright Red
+    Scalar(0, 255, 0),   // Bright Green
+    Scalar(255, 0, 0),   // Bright Blue
+    Scalar(0, 255, 255), // Cyan
+    Scalar(255, 255, 0), // Yellow
+    Scalar(255, 0, 255), // Magenta
+    Scalar(128, 0, 255), // Bright Purple
+    Scalar(0, 128, 255), // Bright Orange
+    Scalar(255, 128, 0), // Bright Pink
+    Scalar(0, 255, 128), // Bright Teal
+    Scalar(128, 255, 0), // Lime Green
+    Scalar(255, 0, 128)  // Bright Cherry
+};
+
 // Render Scene Function
 void renderScene(Mat &canvas, Simulation &sim) {
     // Perspective projection parameters
-    double f = 300 * zoom;                // Focal length
+    double f = 300 * sim.camera.zoom;                // Focal length
     const double near = canvas.rows / 2; // Near clipping plane depth to avoid division by zero.
 
-    double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
-    double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
+    double cosX = cos(sim.camera.angleX), sinX = sin(sim.camera.angleX);
+    double cosY = cos(sim.camera.angleY), sinY = sin(sim.camera.angleY);
     
 
     Vec3d &observer = sim.getObserver();
