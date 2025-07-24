@@ -24,26 +24,24 @@ int main() {
     // Global simulation instance
     Simulation sim;
 
-    int numThreads = max(omp_get_max_threads() - 1, 1);
-    // numThreads = 1;
-    sim.setNumThreads(numThreads);
-    omp_set_num_threads(numThreads);
-    cout << "Running with " << numThreads << " threads." << endl;
+    sim.numThreads = max(omp_get_max_threads() - 1, 1);
+    // sim.numThreads = 1;
+    omp_set_num_threads(sim.numThreads);
+    cout << "Running with " << sim.numThreads << " threads." << endl;
 
     srand(time(nullptr));
     // initParticles:
-    sim.initParticles_3Centers();
+    //sim.initParticles_3Centers();
+    sim.initParticles_WithOldBlackHoles();
     sim.sortParticles();
-
-    //sim.initParticles_WithOldBlackHoles();
 
     namedWindow(windowName, WINDOW_NORMAL);
     setMouseCallback(windowName, onMouse, nullptr);
 
-    sim.getInitParams() = sim.calcParams();
+    sim.initParams();
     sim.recenterAndZeroV(false);
-    while (inputProcessing(sim) && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
-        sim.incrementFrameCount();
+    while (sim.inputProcessing() && getWindowProperty(windowName, WND_PROP_VISIBLE) >= 1) {
+        ++sim.frameCount;
         Rect windowRect = getWindowImageRect(windowName);
         Mat canvas = Mat::zeros(windowRect.height, windowRect.width, CV_8UC3);
 
@@ -58,9 +56,9 @@ int main() {
 
         auto duration = chrono::duration_cast<std::chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
 
-        std::cout << sim.getInactiveCount() << "P: " << (sim.getInitParams().impuls - current.impuls) 
-                 << " E: " << (sim.getTotalKineticEnergy() + sim.getTotalPotentialEnergy()) 
-                 << ", " << sim.getTotalKineticEnergy() << ", " << sim.getTotalPotentialEnergy() << std::endl;
+        std::cout << sim.inactiveCount << "P: " << (sim.init.impuls - current.impuls)
+                 << " E: " << (sim.totalKineticEnergy + sim.totalPotentialEnergy)
+                 << ", " << sim.totalKineticEnergy << ", " << sim.totalPotentialEnergy << std::endl;
         imshow(windowName, canvas);
     }
     destroyAllWindows();

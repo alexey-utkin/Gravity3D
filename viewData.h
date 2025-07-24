@@ -1,8 +1,10 @@
 #ifndef GRAVITY3D_VIEWDATA_H
 #define GRAVITY3D_VIEWDATA_H
 
-#include "data.h"
 #include <opencv2/opencv.hpp>
+
+using namespace cv;
+using namespace std;
 
 // External constants and variables
 extern const std::vector<Vec3d> cubeCorners;
@@ -17,6 +19,5 @@ extern const char windowName[];
 
 // Function declarations for user interaction
 void onMouse(int event, int x, int y, int flags, void *);
-bool inputProcessing(Simulation &sim);
 
 #endif // GRAVITY3D_VIEWDATA_H

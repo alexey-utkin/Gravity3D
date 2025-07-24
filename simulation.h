@@ -4,13 +4,14 @@
 #include "data.h"
 #include <atomic>
 
-class Simulation {
-public:
+struct Simulation {
     static constexpr int cParticles = 2000;
     static constexpr int cBlackHole = 500;
 
     Simulation();
     ~Simulation() = default;
+
+    void initParams() {  init = calcParams(); }
 
     // Initialization methods
     void initParticles_WithOldBlackHoles();
@@ -27,33 +28,15 @@ public:
     void renormalize();
     void recenterAndZeroV(bool forObserver);
 
-    // Accessors
-    int getNumThreads() const { return numThreads; }
-    void setNumThreads(int threads) { numThreads = threads; }
-    
-    double getTotalPotentialEnergy() const { return totalPotentialEnergy; }
-    double getTotalKineticEnergy() const { return totalKineticEnergy; }
-    int getInactiveCount() const { return inactiveCount; }
-    int getFrameCount() const { return frameCount; }
-    void incrementFrameCount() { ++frameCount; }
-    
-    int getFrameCountPerTrace() const { return frameCountPerTrace; }
-    void setFrameCountPerTrace(int count) { frameCountPerTrace = count; }
-    
-    int getTailSize() const { return cTailSize; }
-    void setTailSize(int size) { cTailSize = size; }
-    
-    SystemParams& getInitParams() { return init; }
-    
-    int getObserverIndex() const { return observerIndex; }
-    void setObserverIndex(int index) { observerIndex = index; }
-    
-    Vec3d& getObserver() { return observer; }
-    
-    Particle* getParticles() { return particles; }
-    atomic<int>* getLocks() { return locks; }
+    Vec3d& getObserver() {
+        if (observerIndex >= 0) {
+            observer = particles[observerIndex].position;
+        }
+        return observer;
+    }
 
-private:
+    bool inputProcessing();
+
     // Simulation state
     int numThreads;
     int cTailSize;

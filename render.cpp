@@ -11,13 +11,8 @@ void renderScene(Mat &canvas, Simulation &sim) {
     double cosX = cos(cameraAngleX), sinX = sin(cameraAngleX);
     double cosY = cos(cameraAngleY), sinY = sin(cameraAngleY);
     
-    int observerIndex = sim.getObserverIndex();
+
     Vec3d &observer = sim.getObserver();
-    Particle *particles = sim.getParticles();
-    
-    if (observerIndex >= 0) {
-        observer = particles[observerIndex].position;
-    }
 
     auto projectPerspective = [&](const Vec3d &_point) -> Point {
         Vec3d point = _point - observer;
@@ -48,7 +43,7 @@ void renderScene(Mat &canvas, Simulation &sim) {
     }
 #pragma omp for schedule(static)
     for (auto i = 0; i < Simulation::cParticles; ++i) {
-        Particle &p = particles[i];
+        Particle &p = sim.particles[i];
         if (!p.active)
             continue;
 
@@ -74,7 +69,7 @@ void renderScene(Mat &canvas, Simulation &sim) {
 
         int r = static_cast<int>(p.q() * 255.0 / maxQ);
         int g = static_cast<int>((p.position[2] / HEIGHT + 0.5) * 255.0);
-        int b = observerIndex == i ? 255 : 0;
+        int b = sim.observerIndex == i ? 255 : 0;
 
         // Draw particle
 #pragma omp critical(canvas)

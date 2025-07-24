@@ -9,11 +9,11 @@ double rnd() { return rand() / 32767.0; }
 
 // Particle methods implementation
 void Particle::addTrace(const Simulation& sim) {
-    if ((sim.getFrameCount() % sim.getFrameCountPerTrace()) != 0)
+    if ((sim.frameCount % sim.frameCountPerTrace) != 0)
         return;
 
     trace.push_front(position);
-    if (trace.size() > sim.getTailSize()) {
+    if (trace.size() > sim.cTailSize) {
         trace.pop_back();
     }
 }
