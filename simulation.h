@@ -29,6 +29,10 @@ struct Simulation {
     void renormalize();
     void recenterAndZeroV(bool forObserver);
 
+    // Save/Restore methods
+    bool save(const std::string& filename) const;
+    bool restore(const std::string& filename);
+
     Vec3d& getObserver() {
         if (observerIndex >= 0) {
             observer = particles[observerIndex].position;

@@ -1,5 +1,6 @@
 #include "viewData.h"
 #include "simulation.h"
+#include <iostream>
 
 // Mouse callback for rotation and zoom
 void Camera::_onMouse(int event, int x, int y, int flags) {
@@ -65,6 +66,26 @@ bool Simulation::inputProcessing() {
         break;
     case 'c':
         recenterAndZeroV(false);
+        break;
+    case 's': // Save simulation state
+        {
+            std::string filename = "simulation_state.json";
+            if (save(filename)) {
+                std::cout << "Simulation state saved to " << filename << std::endl;
+            } else {
+                std::cerr << "Failed to save simulation state to " << filename << std::endl;
+            }
+        }
+        break;
+    case 'l': // Load (restore) simulation state
+        {
+            std::string filename = "simulation_state.json";
+            if (restore(filename)) {
+                std::cout << "Simulation state restored from " << filename << std::endl;
+            } else {
+                std::cerr << "Failed to restore simulation state from " << filename << std::endl;
+            }
+        }
         break;
     case 27: // ESC key
     case 'q':

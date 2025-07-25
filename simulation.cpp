@@ -1,8 +1,10 @@
 #include "simulation.h"
+#include "data_serialization.h"
 #include <algorithm>
 #include <cmath>
 #include <omp_llvm.h>
 #include <thread>
+#include <fstream>
 
 Simulation::Simulation()
 {
@@ -259,4 +261,45 @@ void Simulation::recenterAndZeroV(bool forObserver) {
         }
     }
     init = calcParams();
+}
+
+// Save/Restore methods
+bool Simulation::save(const std::string& filename) const {
+    try {
+        // Convert simulation to JSON
+        json j = *this;
+        
+        // Write JSON to file
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            return false;
+        }
+        
+        file << j.dump(4); // Pretty print with 4-space indentation
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error saving simulation: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool Simulation::restore(const std::string& filename) {
+    try {
+        // Read JSON from file
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            return false;
+        }
+        
+        json j;
+        file >> j;
+        
+        // Convert JSON to simulation
+        from_json(j, *this);
+        
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error restoring simulation: " << e.what() << std::endl;
+        return false;
+    }
 }
