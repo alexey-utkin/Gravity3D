@@ -20,7 +20,7 @@ constexpr double minQ = 1e-6;
 double rnd();
 
 // Forward declaration
-class Simulation;
+struct Simulation;
 
 // Particle structure
 struct Particle {

@@ -84,11 +84,15 @@ void renderScene(Mat &canvas, Simulation &sim) {
         return {x_proj, y_proj};
     };
 
-    // Draw cube edges
+    // Draw cube edges with scaling - using a single, subtle color and thicker lines for better appearance
     for (auto i = 0; i < cubeEdges.size(); ++i) {
         const auto &edge = cubeEdges[i];
-        Point p1 = projectPerspective(cubeCorners[edge.first]);
-        Point p2 = projectPerspective(cubeCorners[edge.second]);
+        // Apply scale factor to cube corners
+        Vec3d scaledCorner1 = cubeCorners[edge.first] * sim.cubeScale;
+        Vec3d scaledCorner2 = cubeCorners[edge.second] * sim.cubeScale;
+        // Project scaled corners
+        Point p1 = projectPerspective(scaledCorner1);
+        Point p2 = projectPerspective(scaledCorner2);
         // Wrap color selection using modulo operation to avoid overflow
         const Scalar &color = colors[i % colors.size()];
         line(canvas, p1, p2, color, 1);

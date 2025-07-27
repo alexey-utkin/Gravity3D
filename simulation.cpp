@@ -260,7 +260,49 @@ void Simulation::recenterAndZeroV(bool forObserver) {
             p.velocity -= V;
         }
     }
+#pragma omp single
     init = calcParams();
+}
+
+double  Simulation::galaxyR(Vec3d centerOfMass, double totalMass)
+{
+#pragma omp barrier
+    double maxDistance = minDist;
+#pragma omp parallel
+    {
+        // Each thread has its own local maximum
+        double localMaxDistance = minDist;
+        
+#pragma omp for schedule(static)
+        for (auto i = 0; i < cParticles; ++i) {
+            Particle &p = particles[i];
+            if (!p.active)
+                continue; // Skip inactive particles
+
+            // Calculate distance from center of mass
+            Vec3d relativePos = p.position - centerOfMass;
+            double distance = sqrt(relativePos.dot(relativePos));
+
+            // Calculate escape velocity at this distance
+            // v_escape = sqrt(2 * G * M / r), where G = 1 in this simulation
+            double escapeVelocity = sqrt(2.0 * totalMass / max(distance, minDist));
+
+            // Calculate particle's speed
+            double speed = sqrt(p.velocity.dot(p.velocity));
+
+            // If speed is below escape velocity, consider this particle for viewing
+            if (speed <= escapeVelocity) {
+                localMaxDistance = max(localMaxDistance, distance);
+            }
+        }
+        
+        // Update global maximum with thread's local maximum
+#pragma omp critical(maxDistance)
+        {
+            maxDistance = max(maxDistance, localMaxDistance);
+        }
+    }
+    return maxDistance;
 }
 
 // Save/Restore methods

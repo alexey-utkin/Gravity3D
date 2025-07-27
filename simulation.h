@@ -28,6 +28,7 @@ struct Simulation {
     SystemParams calcParams();
     void renormalize();
     void recenterAndZeroV(bool forObserver);
+    double galaxyR(Vec3d centerOfMass, double totalMass);
 
     // Save/Restore methods
     bool save(const std::string& filename) const;
@@ -60,6 +61,7 @@ struct Simulation {
 
     // UX
     Camera camera;
+    double cubeScale = 1.0; // Scale factor for the bounding cube
 };
 
 #endif // GRAVITY3D_SIMULATION_H
