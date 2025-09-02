@@ -34,24 +34,24 @@ const vector<pair<int, int>> cubeEdges = {
 
 // Define orthogonal directions
 const Vec3d directions[] = {
-    Vec3d(1.0, 0.0, 0.0), // x-axis
-    Vec3d(0.0, 1.0, 0.0), // y-axis
-    Vec3d(0.0, 0.0, 1.0)  // z-axis
+    {1.0, 0.0, 0.0}, // x-axis
+    {0.0, 1.0, 0.0}, // y-axis
+    {0.0, 0.0, 1.0}  // z-axis
 };
 
 const vector<Scalar> colors = {
-    Scalar(0, 0, 255),   // Bright Red
-    Scalar(0, 255, 0),   // Bright Green
-    Scalar(255, 0, 0),   // Bright Blue
-    Scalar(0, 255, 255), // Cyan
-    Scalar(255, 255, 0), // Yellow
-    Scalar(255, 0, 255), // Magenta
-    Scalar(128, 0, 255), // Bright Purple
-    Scalar(0, 128, 255), // Bright Orange
-    Scalar(255, 128, 0), // Bright Pink
-    Scalar(0, 255, 128), // Bright Teal
-    Scalar(128, 255, 0), // Lime Green
-    Scalar(255, 0, 128)  // Bright Cherry
+   {0, 0, 255},   // Bright Red
+   {0, 255, 0},   // Bright Green
+   {255, 0, 0},   // Bright Blue
+   {0, 255, 255}, // Cyan
+   {255, 255, 0}, // Yellow
+   {255, 0, 255}, // Magenta
+   {128, 0, 255}, // Bright Purple
+   {0, 128, 255}, // Bright Orange
+   {255, 128, 0}, // Bright Pink
+   {0, 255, 128}, // Bright Teal
+   {128, 255, 0}, // Lime Green
+   {255, 0, 128}  // Bright Cherry
 };
 
 // Render Scene Function

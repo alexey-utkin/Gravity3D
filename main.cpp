@@ -32,8 +32,8 @@ int main() {
 
     srand(time(nullptr));
     // initParticles:
-    //sim.initParticles_3Centers();
-    sim.initParticles_WithOldBlackHoles();
+    sim.initParticles_3Centers();
+    //sim.initParticles_WithOldBlackHoles();
     sim.sortParticles();
 
     namedWindow(windowName, WINDOW_NORMAL);

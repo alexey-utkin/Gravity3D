@@ -28,7 +28,7 @@ struct Simulation {
     SystemParams calcParams();
     void renormalize();
     void recenterAndZeroV(bool forObserver);
-    double galaxyR(Vec3d centerOfMass, double totalMass);
+    double galaxyR(const Vec3d &centerOfMass, double totalMass);
 
     // Save/Restore methods
     bool save(const std::string& filename) const;
@@ -46,7 +46,7 @@ struct Simulation {
     // Simulation state
     int numThreads = 1;
     int cTailSize = 10;
-    double totalPotentialEnergy;
+    double totalPotentialEnergy = 0.0;
     double totalKineticEnergy = 0.0;
     int inactiveCount = 0;
     int frameCount = 0;

@@ -2,7 +2,7 @@
 #include "data_serialization.h"
 #include <algorithm>
 #include <cmath>
-#include <omp_llvm.h>
+#include <omp.h>
 #include <thread>
 #include <fstream>
 
@@ -264,7 +264,7 @@ void Simulation::recenterAndZeroV(bool forObserver) {
     init = calcParams();
 }
 
-double  Simulation::galaxyR(Vec3d centerOfMass, double totalMass)
+double  Simulation::galaxyR(const Vec3d &centerOfMass, double totalMass)
 {
 #pragma omp barrier
     double maxDistance = minDist;
